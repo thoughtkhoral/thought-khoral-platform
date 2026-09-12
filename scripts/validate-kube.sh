@@ -24,11 +24,21 @@ for manifest in $manifests; do
   [ -f "$path" ] || fail "missing $path"
 done
 
-legacy_labels=$(grep -En \
-  '^[[:space:]]+(n2n([.-][^:]*):|app\.kubernetes\.io/part-of:[[:space:]]+n2n([[:space:]]|$))' \
-  "$kube_dir"/*.yaml || true)
-[ -z "$legacy_labels" ] || \
-  fail "active legacy N2N Kubernetes labels are present:\n$legacy_labels"
+legacy_identifiers=$(awk '
+  {
+    lower = tolower($0)
+    if (index(lower, "n2n") == 0) next
+    if (lower ~ /n2n\.room\.v1/ || lower ~ /n2n_role/) next
+    if ($0 ~ /^[[:space:]]+value:[[:space:]]+n2n[[:space:]]*$/) next
+    if ($0 ~ /^[[:space:]]+value:[[:space:]]+n2n-admin-dev-only[[:space:]]*$/) next
+    if ($0 ~ /^[[:space:]]+value:[[:space:]]+n2n-dev-only[[:space:]]*$/) next
+    if ($0 ~ /^[[:space:]]+value:[[:space:]]+postgres:\/\/n2n:n2n-dev-only@thought-khoral-postgres:5432\/n2n[[:space:]]*$/) next
+    if ($0 ~ /^[[:space:]]+command:[[:space:]]+\[pg_isready, -U, n2n, -d, n2n\][[:space:]]*$/) next
+    print FILENAME ":" FNR ":" $0
+  }
+' "$kube_dir"/*.yaml)
+[ -z "$legacy_identifiers" ] || \
+  fail "active legacy N2N Kubernetes identifiers are present:\n$legacy_identifiers"
 
 # Namespace and Service resources are Kubernetes API objects that Podman does
 # not create. Workload manifests keep their Podman-playable Deployment first.

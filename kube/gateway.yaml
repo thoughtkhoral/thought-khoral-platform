@@ -28,7 +28,7 @@ spec:
           imagePullPolicy: Never
           env:
             - name: DATABASE_URL
-              value: postgres://n2n:thought-khoral-dev-only@thought-khoral-postgres:5432/n2n
+              value: postgres://n2n:n2n-dev-only@thought-khoral-postgres:5432/n2n
             - name: THOUGHT_KHORAL_ALLOWED_ORIGINS
               value: http://localhost:8082
             - name: THOUGHT_KHORAL_LISTEN_ADDRESS

@@ -46,9 +46,28 @@ require_compose_identity() {
   [ "$actual_services" = "$expected_services" ] || \
     fail "Compose services do not use the ThoughtKhoral identities:\n$actual_services"
 
-  if podman-compose -f "$compose_file" config | grep -Eq '(^|[/:_-])n2n[_-]'; then
-    fail 'Compose configuration contains an active legacy N2N identifier'
-  fi
+  compose_config=$(podman-compose -f "$compose_file" config) || \
+    fail 'Compose configuration is invalid'
+
+  printf '%s\n' "$compose_config" | grep -q 'name: n2n_postgres-data' || \
+    fail 'ThoughtKhoral must reuse the external n2n_postgres-data compatibility volume'
+  printf '%s\n' "$compose_config" | grep -q 'external: true' || \
+    fail 'the compatibility database volume must be declared external'
+  printf '%s\n' "$compose_config" | grep -q 'POSTGRES_PASSWORD: n2n-dev-only' || \
+    fail 'the persisted PostgreSQL password semantics changed'
+  printf '%s\n' "$compose_config" | grep -q 'KC_DB_PASSWORD: n2n-dev-only' || \
+    fail 'the persisted Keycloak database password semantics changed'
+  printf '%s\n' "$compose_config" | grep -q 'KC_BOOTSTRAP_ADMIN_PASSWORD: n2n-admin-dev-only' || \
+    fail 'the persisted Keycloak administrator password semantics changed'
+  printf '%s\n' "$compose_config" | \
+    grep -q 'DATABASE_URL: postgres://n2n:n2n-dev-only@thought-khoral-postgres:5432/n2n' || \
+    fail 'the gateway database compatibility URL changed'
+
+  unexpected_n2n=$(printf '%s\n' "$compose_config" | \
+    grep -Ei 'n2n[_-]' | \
+    grep -Ev '^[[:space:]]+(KC_BOOTSTRAP_ADMIN_PASSWORD: n2n-admin-dev-only|KC_DB_PASSWORD: n2n-dev-only|POSTGRES_PASSWORD: n2n-dev-only|DATABASE_URL: postgres://n2n:n2n-dev-only@thought-khoral-postgres:5432/n2n|name: n2n_postgres-data)$' || true)
+  [ -z "$unexpected_n2n" ] || \
+    fail "Compose configuration contains an active legacy N2N identifier:\n$unexpected_n2n"
 
   legacy_containers=$(podman ps --all \
     --filter label=io.podman.compose.project=n2n \
@@ -76,6 +95,7 @@ require_fresh_browser_entry() {
 command -v podman-compose >/dev/null 2>&1 || fail 'podman-compose is required'
 command -v podman >/dev/null 2>&1 || fail 'podman is required'
 command -v curl >/dev/null 2>&1 || fail 'curl is required'
+command -v node >/dev/null 2>&1 || fail 'Node.js is required'
 
 require_compose_identity
 retry PostgreSQL postgres_ready
@@ -86,5 +106,6 @@ retry UI curl --fail --silent --show-error http://127.0.0.1:8082/
 require_fresh_browser_entry || \
   fail 'UI entry responses permit a stale pre-migration browser bootstrap'
 retry 'ThoughtKhoral browser title' require_thought_khoral_title
+node "$platform_dir/scripts/browser-smoke.mjs"
 
 printf 'smoke: all local services are ready\n'

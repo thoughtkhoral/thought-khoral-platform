@@ -7,11 +7,13 @@
 ## Acceptance criteria
 
 - Local composition starts PostgreSQL, Keycloak, the room gateway, and the workspace UI with explicit health checks and no host-network mode.
-- The Compose project is `thought-khoral`; its services and images are named `thought-khoral-postgres`, `thought-khoral-keycloak`, `thought-khoral-room-gateway`, and `thought-khoral-workspace-ui`, and its persistent volume is `thought-khoral-postgres-data`.
+- The Compose project is `thought-khoral`; its services and images are named `thought-khoral-postgres`, `thought-khoral-keycloak`, `thought-khoral-room-gateway`, and `thought-khoral-workspace-ui`.
+- The logical Compose volume `thought-khoral-postgres-data` maps explicitly to the existing external physical volume `n2n_postgres-data`; PostgreSQL and Keycloak database credentials retain their existing development values so persisted state remains usable.
 - Development identity configuration supplies the required human and agent roles without tracking production credentials.
 - Gateway configuration uses the `THOUGHT_KHORAL_` namespace, and the browser host bootstrap uses `window.thoughtKhoralWorkspace`.
 - Kubernetes resources use ThoughtKhoral names and labels, mirror the Compose service and environment contracts, and pass local manifest validation with non-root security settings.
-- The authenticated browser room displays the ThoughtKhoral document title and visible product heading.
+- A fresh, cookie-isolated smoke session completes OAuth 2.0 Authorization Code with PKCE, exchanges the code for a token, authenticates the WebSocket with `session.authenticate`, joins the retained v1 room, and observes an authenticated participant and room replay result.
+- Kubernetes validation rejects every active N2N identity occurrence, including label keys and values, while allowing only enumerated `n2n.room.v1`, `n2n_role`, and database compatibility values.
 
 ## Interfaces
 

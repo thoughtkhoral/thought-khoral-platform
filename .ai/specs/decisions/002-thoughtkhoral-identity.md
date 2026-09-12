@@ -10,6 +10,11 @@ This repository implements root [Decision 003 — ThoughtKhoral product identity
 
 The existing `n2n.room.v1` protocol values remain wire-compatible and unchanged. Database identifiers, database contents, persisted records, persisted fields, and persisted values are excluded from this rename.
 
+The logical Compose volume `thought-khoral-postgres-data` therefore continues
+to resolve to the existing external physical volume `n2n_postgres-data`.
+Persisted PostgreSQL and Keycloak development credential values are retained;
+this identity migration does not rotate or reinterpret them.
+
 ## Consequences
 
 - New project-facing identifiers use `thought-khoral-platform`.

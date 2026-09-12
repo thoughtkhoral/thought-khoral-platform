@@ -31,7 +31,7 @@ spec:
             - name: KC_BOOTSTRAP_ADMIN_USERNAME
               value: admin
             - name: KC_BOOTSTRAP_ADMIN_PASSWORD
-              value: thought-khoral-admin-dev-only
+              value: n2n-admin-dev-only
             - name: KC_DB
               value: postgres
             - name: KC_DB_URL
@@ -39,7 +39,7 @@ spec:
             - name: KC_DB_USERNAME
               value: n2n
             - name: KC_DB_PASSWORD
-              value: thought-khoral-dev-only
+              value: n2n-dev-only
             - name: KC_HEALTH_ENABLED
               value: "true"
             - name: KC_HOSTNAME

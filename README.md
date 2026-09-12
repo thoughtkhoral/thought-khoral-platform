@@ -14,8 +14,10 @@ The Compose project is `thought-khoral`. Its services and local image tags are:
 | `thought-khoral-room-gateway` | `localhost/thought-khoral-room-gateway:dev` |
 | `thought-khoral-workspace-ui` | `localhost/thought-khoral-workspace-ui:dev` |
 
-The stack uses the `thought-khoral-network` network and preserves PostgreSQL
-state in the `thought-khoral-postgres-data` named volume.
+The stack uses the `thought-khoral-network` network. Its logical
+`thought-khoral-postgres-data` volume is an explicit compatibility mapping to
+the pre-migration external volume `n2n_postgres-data`, so the identity rename
+does not abandon persisted PostgreSQL and Keycloak state.
 
 ## Prerequisites
 
@@ -57,8 +59,12 @@ podman-compose down
 
 ThoughtKhoral is the active product and runtime identity. The existing
 `n2n.room.v1` protocol, PostgreSQL database and role names, database contents,
-persisted fields and values, and the `n2n_role` OIDC claim remain unchanged for
-wire and data compatibility. They are not aliases for new platform resources.
+persisted fields and values, the physical `n2n_postgres-data` volume, existing
+development database credential values, and the `n2n_role` OIDC claim remain
+unchanged for wire and data compatibility. They are not aliases for new
+platform resources. The external volume must already exist; it is created by
+the pre-migration stack and is intentionally not deleted by
+`podman-compose down`.
 
 ## Local security boundary
 

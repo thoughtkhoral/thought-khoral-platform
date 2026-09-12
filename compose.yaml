@@ -8,7 +8,7 @@ services:
     image: localhost/thought-khoral-postgres:dev
     environment:
       POSTGRES_DB: n2n
-      POSTGRES_PASSWORD: thought-khoral-dev-only
+      POSTGRES_PASSWORD: n2n-dev-only
       POSTGRES_USER: n2n
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U n2n -d n2n"]
@@ -38,10 +38,10 @@ services:
       thought-khoral-postgres:
         condition: service_healthy
     environment:
-      KC_BOOTSTRAP_ADMIN_PASSWORD: thought-khoral-admin-dev-only
+      KC_BOOTSTRAP_ADMIN_PASSWORD: n2n-admin-dev-only
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_DB: postgres
-      KC_DB_PASSWORD: thought-khoral-dev-only
+      KC_DB_PASSWORD: n2n-dev-only
       KC_DB_URL: jdbc:postgresql://thought-khoral-postgres:5432/keycloak
       KC_DB_USERNAME: n2n
       KC_HEALTH_ENABLED: "true"
@@ -80,7 +80,7 @@ services:
       thought-khoral-postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://n2n:thought-khoral-dev-only@thought-khoral-postgres:5432/n2n
+      DATABASE_URL: postgres://n2n:n2n-dev-only@thought-khoral-postgres:5432/n2n
       THOUGHT_KHORAL_ALLOWED_ORIGINS: http://localhost:8082
       THOUGHT_KHORAL_LISTEN_ADDRESS: 0.0.0.0:8080
       THOUGHT_KHORAL_OIDC_AUDIENCE: thought-khoral-workspace
@@ -137,4 +137,5 @@ networks:
 
 volumes:
   thought-khoral-postgres-data:
-    name: thought-khoral-postgres-data
+    external: true
+    name: n2n_postgres-data
