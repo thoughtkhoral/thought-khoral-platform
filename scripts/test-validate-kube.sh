@@ -19,14 +19,35 @@ chmod +x "$fixture_dir/bin/podman"
 
 PATH="$fixture_dir/bin:$PATH" sh "$fixture_dir/scripts/validate-kube.sh" >/dev/null
 
-printf '%s\n' '    app.kubernetes.io/name: n2n-gateway' >>"$fixture_dir/kube/gateway.yaml"
-if output=$(PATH="$fixture_dir/bin:$PATH" sh "$fixture_dir/scripts/validate-kube.sh" 2>&1); then
-  printf 'test-validate-kube: validator accepted an active legacy name label\n' >&2
-  exit 1
-fi
-printf '%s\n' "$output" | grep -q 'app.kubernetes.io/name: n2n-gateway' || {
-  printf 'test-validate-kube: rejection did not identify the legacy label\n' >&2
-  exit 1
+failures=0
+
+assert_rejected() {
+  case_name=$1
+  legacy_line=$2
+  {
+    printf '%s\n' 'apiVersion: v1' 'kind: ConfigMap' 'metadata:'
+    printf '%s\n' '  name: thought-khoral-validator-fixture' '  labels:'
+    printf '%s\n' "$legacy_line"
+  } >"$fixture_dir/kube/legacy-label.yaml"
+
+  if output=$(PATH="$fixture_dir/bin:$PATH" sh "$fixture_dir/scripts/validate-kube.sh" 2>&1); then
+    printf 'test-validate-kube: validator accepted %s\n' "$case_name" >&2
+    failures=$((failures + 1))
+    return
+  fi
+  if ! printf '%s\n' "$output" | grep -Fq "$legacy_line"; then
+    printf 'test-validate-kube: rejection did not identify %s\n' "$case_name" >&2
+    failures=$((failures + 1))
+  fi
 }
+
+assert_rejected 'an active legacy name label' \
+  '    app.kubernetes.io/name: n2n-gateway'
+assert_rejected 'an active legacy n2n_role label key' \
+  '    n2n_role: active-legacy-label'
+assert_rejected 'a legacy app name containing an allowed contract value' \
+  '    app.kubernetes.io/name: n2n-gateway-n2n.room.v1'
+
+[ "$failures" -eq 0 ] || exit 1
 
 printf 'test-validate-kube: compatibility allowlist and legacy-label rejection passed\n'

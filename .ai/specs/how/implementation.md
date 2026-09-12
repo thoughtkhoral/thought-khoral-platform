@@ -59,11 +59,14 @@ sends `session.authenticate`, and joins the fixture room through
 responses prove an authenticated connected room; access and refresh tokens are
 never printed.
 
-`scripts/validate-kube.sh` scans every N2N occurrence and allows only exact
-wire, claim, database identifier, persisted credential, and database URL
-forms. `scripts/test-validate-kube.sh` copies the real manifests into an
-isolated fixture and proves that an active legacy label value such as
-`app.kubernetes.io/name: n2n-gateway` is rejected before Podman parsing. The
-release check then asks rootless Podman to parse every workload manifest and
-performs narrowly scoped Compose cleanup without deleting the external
-PostgreSQL volume.
+`scripts/validate-kube.sh` scans every N2N occurrence. Wire and claim
+compatibility terms are allowed only as exact YAML `value` scalars; database
+identifiers and persisted credentials are allowed only as the exact value of
+their expected environment entry, and the database URL and readiness command
+must match their complete intended forms. An allowed term appearing elsewhere
+on a line never exempts that line. `scripts/test-validate-kube.sh` copies the
+real manifests into an isolated fixture and proves that active legacy labels,
+an `n2n_role` metadata key, and an app name that also contains
+`n2n.room.v1` are rejected before Podman parsing. The release check then asks
+rootless Podman to parse every workload manifest and performs narrowly scoped
+Compose cleanup without deleting the external PostgreSQL volume.

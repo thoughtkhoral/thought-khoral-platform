@@ -25,16 +25,26 @@ for manifest in $manifests; do
 done
 
 legacy_identifiers=$(awk '
+  function previous_name_is(pattern) {
+    return previous ~ ("^[[:space:]]+-[[:space:]]+name:[[:space:]]+(" pattern ")[[:space:]]*$")
+  }
   {
     lower = tolower($0)
-    if (index(lower, "n2n") == 0) next
-    if (lower ~ /n2n\.room\.v1/ || lower ~ /n2n_role/) next
-    if ($0 ~ /^[[:space:]]+value:[[:space:]]+n2n[[:space:]]*$/) next
-    if ($0 ~ /^[[:space:]]+value:[[:space:]]+n2n-admin-dev-only[[:space:]]*$/) next
-    if ($0 ~ /^[[:space:]]+value:[[:space:]]+n2n-dev-only[[:space:]]*$/) next
-    if ($0 ~ /^[[:space:]]+value:[[:space:]]+postgres:\/\/n2n:n2n-dev-only@thought-khoral-postgres:5432\/n2n[[:space:]]*$/) next
-    if ($0 ~ /^[[:space:]]+command:[[:space:]]+\[pg_isready, -U, n2n, -d, n2n\][[:space:]]*$/) next
-    print FILENAME ":" FNR ":" $0
+    if (index(lower, "n2n") != 0) {
+      allowed = 0
+      if ($0 ~ /^[[:space:]]+value:[[:space:]]+(n2n\.room\.v1|n2n_role)[[:space:]]*$/) allowed = 1
+      if ($0 ~ /^[[:space:]]+value:[[:space:]]+n2n[[:space:]]*$/ &&
+          previous_name_is("POSTGRES_DB|POSTGRES_USER|KC_DB_USERNAME")) allowed = 1
+      if ($0 ~ /^[[:space:]]+value:[[:space:]]+n2n-admin-dev-only[[:space:]]*$/ &&
+          previous_name_is("KC_BOOTSTRAP_ADMIN_PASSWORD")) allowed = 1
+      if ($0 ~ /^[[:space:]]+value:[[:space:]]+n2n-dev-only[[:space:]]*$/ &&
+          previous_name_is("POSTGRES_PASSWORD|KC_DB_PASSWORD")) allowed = 1
+      if ($0 ~ /^[[:space:]]+value:[[:space:]]+postgres:\/\/n2n:n2n-dev-only@thought-khoral-postgres:5432\/n2n[[:space:]]*$/ &&
+          previous_name_is("DATABASE_URL")) allowed = 1
+      if ($0 ~ /^[[:space:]]+command:[[:space:]]+\[pg_isready, -U, n2n, -d, n2n\][[:space:]]*$/) allowed = 1
+      if (!allowed) print FILENAME ":" FNR ":" $0
+    }
+    previous = $0
   }
 ' "$kube_dir"/*.yaml)
 [ -z "$legacy_identifiers" ] || \
