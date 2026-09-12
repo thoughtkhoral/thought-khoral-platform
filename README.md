@@ -58,13 +58,14 @@ podman-compose down
 ## Compatibility boundary
 
 ThoughtKhoral is the active product and runtime identity. The existing
-`n2n.room.v1` protocol, PostgreSQL database and role names, database contents,
-persisted fields and values, the physical `n2n_postgres-data` volume, existing
-development database credential values, and the `n2n_role` OIDC claim remain
-unchanged for wire and data compatibility. They are not aliases for new
-platform resources. The external volume must already exist; it is created by
-the pre-migration stack and is intentionally not deleted by
-`podman-compose down`.
+`n2n.room.v1` protocol, PostgreSQL database and role `n2n`, physical
+`n2n_postgres-data` volume, development-only persisted credential values
+`n2n-dev-only` and `n2n-admin-dev-only`, and `n2n_role` OIDC claim remain
+unchanged for wire and persisted-data compatibility. Existing database
+contents, record fields, and values in that volume remain unchanged as well.
+These values are not aliases for new platform resources. The external volume
+must already exist; it is created by the pre-migration stack and is
+intentionally not deleted by `podman-compose down`.
 
 ## Local security boundary
 
@@ -75,7 +76,7 @@ credentials. Host ports bind to loopback in Compose, containers cannot gain
 privileges, and writable paths are explicit volumes or temporary filesystems.
 
 The Kubernetes files mirror the ThoughtKhoral Compose service and environment
-names. The validation script rejects active legacy N2N labels, then passes each
+names. The validation script rejects active pre-migration labels, then passes each
 workload manifest to `podman play kube --replace --start=false`;
 Kubernetes-only Namespace and Service resources remain in the same files for
 cluster parity.
