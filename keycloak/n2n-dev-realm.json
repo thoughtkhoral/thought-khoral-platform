@@ -1,0 +1,123 @@
+{
+  "realm": "n2n",
+  "displayName": "N:N local development",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": false,
+  "clients": [
+    {
+      "clientId": "n2n-workspace",
+      "name": "N:N workspace UI",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "rootUrl": "http://localhost:8082",
+      "baseUrl": "http://localhost:8082/",
+      "redirectUris": [
+        "http://localhost:8082/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8082"
+      ],
+      "protocol": "openid-connect",
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "N:N role",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "n2n_role",
+            "claim.name": "n2n_role",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "multivalued": "false"
+          }
+        },
+        {
+          "name": "N:N workspace audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "n2n-workspace",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "username": "alice",
+      "enabled": true,
+      "email": "alice@n2n.example.invalid",
+      "emailVerified": true,
+      "firstName": "Alice",
+      "lastName": "Human",
+      "attributes": {
+        "n2n_role": [
+          "human"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "alice-dev-only",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "username": "bob",
+      "enabled": true,
+      "email": "bob@n2n.example.invalid",
+      "emailVerified": true,
+      "firstName": "Bob",
+      "lastName": "Human",
+      "attributes": {
+        "n2n_role": [
+          "human"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "bob-dev-only",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "33333333-3333-4333-8333-333333333333",
+      "username": "facilitator-agent",
+      "enabled": true,
+      "email": "facilitator@n2n.example.invalid",
+      "emailVerified": true,
+      "firstName": "Facilitator",
+      "lastName": "Agent",
+      "attributes": {
+        "n2n_role": [
+          "agent"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "agent-dev-only",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

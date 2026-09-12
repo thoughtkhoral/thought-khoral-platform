@@ -1,0 +1,127 @@
+name: n2n
+
+services:
+  postgres:
+    build:
+      context: ..
+      dockerfile: n2n-platform/containers/postgres.Containerfile
+    image: localhost/n2n-postgres:dev
+    environment:
+      POSTGRES_DB: n2n
+      POSTGRES_PASSWORD: n2n-dev-only
+      POSTGRES_USER: n2n
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U n2n -d n2n"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    ports:
+      - "127.0.0.1:5432:5432"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  keycloak:
+    build:
+      context: ..
+      dockerfile: n2n-platform/containers/keycloak.Containerfile
+    image: localhost/n2n-keycloak:dev
+    command: ["start", "--optimized", "--import-realm"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      KC_BOOTSTRAP_ADMIN_PASSWORD: n2n-admin-dev-only
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_DB: postgres
+      KC_DB_PASSWORD: n2n-dev-only
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: n2n
+      KC_HEALTH_ENABLED: "true"
+      KC_HOSTNAME: http://localhost:8081
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q '200 OK' <&3
+      interval: 5s
+      timeout: 5s
+      retries: 36
+    ports:
+      - "127.0.0.1:8081:8080"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /opt/keycloak/data/tmp
+      - /tmp
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: n2n-platform/containers/gateway.Containerfile
+    image: localhost/n2n-gateway:dev
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://n2n:n2n-dev-only@postgres:5432/n2n
+      N2N_ALLOWED_ORIGINS: http://localhost:8082
+      N2N_LISTEN_ADDRESS: 0.0.0.0:8080
+      N2N_OIDC_AUDIENCE: n2n-workspace
+      N2N_OIDC_ISSUER: http://localhost:8081/realms/n2n
+      N2N_OIDC_JWKS_URL: http://keycloak:8080/realms/n2n/protocol/openid-connect/certs
+      N2N_SESSION_AUTH_TIMEOUT_MS: "5000"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/ws)" = 400
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    ports:
+      - "127.0.0.1:8080:8080"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+
+  ui:
+    build:
+      context: ..
+      dockerfile: n2n-platform/containers/ui.Containerfile
+    image: localhost/n2n-ui:dev
+    depends_on:
+      gateway:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    ports:
+      - "127.0.0.1:8082:8080"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+
+volumes:
+  postgres-data:
