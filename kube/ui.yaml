@@ -1,28 +1,30 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ui
-  namespace: n2n-dev
+  name: thought-khoral-workspace-ui
+  namespace: thought-khoral-dev
   labels:
-    app.kubernetes.io/name: ui
-    n2n.redhat.com/environment: development-only
+    app.kubernetes.io/name: thought-khoral-workspace-ui
+    app.kubernetes.io/part-of: thought-khoral
+    thought-khoral.redhat.com/environment: development-only
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: ui
+      app.kubernetes.io/name: thought-khoral-workspace-ui
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: ui
+        app.kubernetes.io/name: thought-khoral-workspace-ui
+        app.kubernetes.io/part-of: thought-khoral
     spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 101
         runAsGroup: 0
       containers:
-        - name: ui
-          image: localhost/n2n-ui:dev
+        - name: thought-khoral-workspace-ui
+          image: localhost/thought-khoral-workspace-ui:dev
           imagePullPolicy: Never
           ports:
             - name: http
@@ -57,11 +59,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: ui
-  namespace: n2n-dev
+  name: thought-khoral-workspace-ui
+  namespace: thought-khoral-dev
+  labels:
+    app.kubernetes.io/name: thought-khoral-workspace-ui
+    app.kubernetes.io/part-of: thought-khoral
 spec:
   selector:
-    app.kubernetes.io/name: ui
+    app.kubernetes.io/name: thought-khoral-workspace-ui
   ports:
     - name: http
       port: 8080

@@ -1,11 +1,12 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: postgres-data
-  namespace: n2n-dev
+  name: thought-khoral-postgres-data
+  namespace: thought-khoral-dev
   labels:
-    app.kubernetes.io/name: postgres
-    n2n.redhat.com/environment: development-only
+    app.kubernetes.io/name: thought-khoral-postgres
+    app.kubernetes.io/part-of: thought-khoral
+    thought-khoral.redhat.com/environment: development-only
 spec:
   accessModes: [ReadWriteOnce]
   resources:
@@ -15,20 +16,22 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: postgres
-  namespace: n2n-dev
+  name: thought-khoral-postgres
+  namespace: thought-khoral-dev
   labels:
-    app.kubernetes.io/name: postgres
-    n2n.redhat.com/environment: development-only
+    app.kubernetes.io/name: thought-khoral-postgres
+    app.kubernetes.io/part-of: thought-khoral
+    thought-khoral.redhat.com/environment: development-only
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: postgres
+      app.kubernetes.io/name: thought-khoral-postgres
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: postgres
+        app.kubernetes.io/name: thought-khoral-postgres
+        app.kubernetes.io/part-of: thought-khoral
     spec:
       securityContext:
         runAsNonRoot: true
@@ -36,8 +39,8 @@ spec:
         runAsGroup: 999
         fsGroup: 999
       containers:
-        - name: postgres
-          image: localhost/n2n-postgres:dev
+        - name: thought-khoral-postgres
+          image: localhost/thought-khoral-postgres:dev
           imagePullPolicy: Never
           env:
             - name: POSTGRES_DB
@@ -45,7 +48,7 @@ spec:
             - name: POSTGRES_USER
               value: n2n
             - name: POSTGRES_PASSWORD
-              value: n2n-dev-only
+              value: thought-khoral-dev-only
           ports:
             - name: postgres
               containerPort: 5432
@@ -70,7 +73,7 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: postgres-data
+            claimName: thought-khoral-postgres-data
         - name: run
           emptyDir: {}
         - name: tmp
@@ -79,11 +82,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgres
-  namespace: n2n-dev
+  name: thought-khoral-postgres
+  namespace: thought-khoral-dev
+  labels:
+    app.kubernetes.io/name: thought-khoral-postgres
+    app.kubernetes.io/part-of: thought-khoral
 spec:
   selector:
-    app.kubernetes.io/name: postgres
+    app.kubernetes.io/name: thought-khoral-postgres
   ports:
     - name: postgres
       port: 5432

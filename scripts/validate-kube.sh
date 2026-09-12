@@ -7,7 +7,7 @@ manifests='namespace postgres keycloak gateway ui'
 validated_manifests=''
 
 fail() {
-  printf 'validate-kube: %s\n' "$*" >&2
+  printf 'validate-kube: %b\n' "$*" >&2
   exit 1
 }
 
@@ -23,6 +23,12 @@ for manifest in $manifests; do
   path="$kube_dir/$manifest.yaml"
   [ -f "$path" ] || fail "missing $path"
 done
+
+legacy_labels=$(grep -En \
+  '^[[:space:]]+(n2n([.-][^:]*):|app\.kubernetes\.io/part-of:[[:space:]]+n2n([[:space:]]|$))' \
+  "$kube_dir"/*.yaml || true)
+[ -z "$legacy_labels" ] || \
+  fail "active legacy N2N Kubernetes labels are present:\n$legacy_labels"
 
 # Namespace and Service resources are Kubernetes API objects that Podman does
 # not create. Workload manifests keep their Podman-playable Deployment first.

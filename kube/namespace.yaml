@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: n2n-dev
+  name: thought-khoral-dev
   labels:
-    app.kubernetes.io/part-of: n2n
-    n2n.redhat.com/environment: development-only
+    app.kubernetes.io/part-of: thought-khoral
+    thought-khoral.redhat.com/environment: development-only

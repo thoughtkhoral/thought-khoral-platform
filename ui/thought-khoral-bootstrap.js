@@ -1,10 +1,10 @@
-const clientId = 'n2n-workspace';
+const clientId = 'thought-khoral-workspace';
 const keycloakOrigin = 'http://localhost:8081';
-const realm = 'n2n';
+const realm = 'thought-khoral';
 const authorizationEndpoint = `${keycloakOrigin}/realms/${realm}/protocol/openid-connect/auth`;
 const tokenEndpoint = `${keycloakOrigin}/realms/${realm}/protocol/openid-connect/token`;
-const sessionKey = 'n2n.oidc.tokens';
-const transactionKey = 'n2n.oidc.transaction';
+const sessionKey = 'thought-khoral.oidc.tokens';
+const transactionKey = 'thought-khoral.oidc.transaction';
 
 function encodeBase64Url(bytes) {
   return btoa(String.fromCharCode(...bytes))
@@ -168,13 +168,13 @@ class AuthenticatedSocket extends EventTarget {
 await finishAuthorizationCallback();
 const tokens = readTokens();
 const pageUrl = new URL(location.href);
-window.n2nWorkspace = {
+window.thoughtKhoralWorkspace = {
   roomId: pageUrl.searchParams.get('room') ?? '10000000-0000-4000-8000-000000000001',
   participantRole: tokens?.role ?? 'human',
   getAccessToken,
   createSocket: (url, accessToken) => new AuthenticatedSocket(url, accessToken),
 };
 
-const appModule = document.querySelector('meta[name="n2n-app-module"]')?.content;
-if (!appModule) throw new Error('N:N application module is unavailable');
+const appModule = document.querySelector('meta[name="thought-khoral-app-module"]')?.content;
+if (!appModule) throw new Error('ThoughtKhoral application module is unavailable');
 await import(appModule);
