@@ -2,7 +2,7 @@
 
 ## Sole MVP responsibility
 
-`n2n-platform` composes the independently built MVP services for local, rootless execution and validates the matching Kubernetes manifests.
+`thought-khoral-platform` composes the independently built MVP services for local, rootless execution and validates the matching Kubernetes manifests.
 
 ## Acceptance criteria
 
