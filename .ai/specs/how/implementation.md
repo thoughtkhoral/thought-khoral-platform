@@ -1,6 +1,6 @@
 # Local platform implementation
 
-Follow the [root MVP foundation implementation plan](../../../../.ai/specs/how/n2n-mvp-foundation-implementation-plan.md), the [ThoughtKhoral identity migration design](../../../../.ai/specs/how/thoughtkhoral-identity-migration.md), and the root governance decisions before changing this project.
+Follow the [root MVP foundation implementation plan](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/n2n-mvp-foundation-implementation-plan.md), the [ThoughtKhoral identity migration design](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/thoughtkhoral-identity-migration.md), and the root governance decisions before changing this project.
 
 Implementation begins only after the relevant task is approved. Local composition must remain rootless, use explicit health checks, and keep credentials out of tracked files.
 

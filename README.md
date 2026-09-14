@@ -1,9 +1,18 @@
 # ThoughtKhoral local MVP platform
 
+MVP / active development. This repository composes the local development stack;
+it is not a production deployment distribution.
+
 This independent project builds the checked-out
 `../thought-khoral-room-gateway` and `../thought-khoral-workspace-ui`
 repositories and composes them with PostgreSQL/pgvector and Keycloak. The
 stack runs through rootless Podman without host networking.
+
+The documented source-build path expects the platform, gateway, and UI
+repositories to be checked out as sibling directories. See the [local
+specification index](.ai/specs/README.md), the [repository
+map](https://github.com/thoughtkhoral/thought-khoral/blob/main/docs/repository-map.md),
+and the [organization contribution guide](https://github.com/thoughtkhoral/.github/blob/main/CONTRIBUTING.md).
 
 The Compose project is `thought-khoral`. Its services and local image tags are:
 
