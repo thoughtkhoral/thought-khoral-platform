@@ -3,7 +3,7 @@ name: thought-khoral
 services:
   thought-khoral-postgres:
     build:
-      context: ..
+      context: ${THOUGHT_KHORAL_SOURCE_ROOT:-..}
       dockerfile: thought-khoral-platform/containers/postgres.Containerfile
     image: localhost/thought-khoral-postgres:dev
     environment:
@@ -30,7 +30,7 @@ services:
 
   thought-khoral-keycloak:
     build:
-      context: ..
+      context: ${THOUGHT_KHORAL_SOURCE_ROOT:-..}
       dockerfile: thought-khoral-platform/containers/keycloak.Containerfile
     image: localhost/thought-khoral-keycloak:dev
     command: ["start", "--optimized", "--import-realm"]
@@ -71,7 +71,7 @@ services:
 
   thought-khoral-room-gateway:
     build:
-      context: ..
+      context: ${THOUGHT_KHORAL_SOURCE_ROOT:-..}
       dockerfile: thought-khoral-platform/containers/gateway.Containerfile
     image: localhost/thought-khoral-room-gateway:dev
     depends_on:
@@ -106,7 +106,7 @@ services:
 
   thought-khoral-workspace-ui:
     build:
-      context: ..
+      context: ${THOUGHT_KHORAL_SOURCE_ROOT:-..}
       dockerfile: thought-khoral-platform/containers/ui.Containerfile
     image: localhost/thought-khoral-workspace-ui:dev
     depends_on:

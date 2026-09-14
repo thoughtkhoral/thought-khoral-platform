@@ -3,13 +3,16 @@
 MVP / active development. This repository composes the local development stack;
 it is not a production deployment distribution.
 
-This independent project builds the checked-out
-`../thought-khoral-room-gateway` and `../thought-khoral-workspace-ui`
-repositories and composes them with PostgreSQL/pgvector and Keycloak. The
-stack runs through rootless Podman without host networking.
+This independent project builds the
+[room gateway](https://github.com/thoughtkhoral/thought-khoral-room-gateway)
+and [workspace UI](https://github.com/thoughtkhoral/thought-khoral-workspace-ui)
+and composes them with PostgreSQL/pgvector and Keycloak. The default source
+build uses checked-out sibling repositories; `scripts/build-remote.sh` also
+builds from pinned GitHub revisions. The stack runs through rootless Podman
+without host networking.
 
-The documented source-build path expects the platform, gateway, and UI
-repositories to be checked out as sibling directories. See the [local
+The local source-build path expects the platform, gateway, and UI repositories
+to be checked out as sibling directories. See the [local
 specification index](.ai/specs/README.md), the [repository
 map](https://github.com/thoughtkhoral/thought-khoral/blob/main/docs/repository-map.md),
 and the [organization contribution guide](https://github.com/thoughtkhoral/.github/blob/main/CONTRIBUTING.md).
@@ -33,7 +36,9 @@ does not abandon persisted PostgreSQL and Keycloak state.
 - A running rootless Podman machine
 - `podman-compose`
 - `curl`
-- The sibling gateway and UI repositories at the paths shown above
+- For local builds, the gateway and UI repositories checked out beside this
+  platform repository
+- For remote builds, immutable gateway and UI commit or release-tag refs
 
 ## Start and verify
 
@@ -41,6 +46,14 @@ does not abandon persisted PostgreSQL and Keycloak state.
 podman-compose up --build -d
 bash scripts/smoke.sh
 bash scripts/validate-kube.sh
+```
+
+To build from GitHub sources instead of local sibling directories, provide one
+ref for each component:
+
+```sh
+sh scripts/build-remote.sh <gateway-ref> <ui-ref>
+bash scripts/smoke.sh
 ```
 
 Open <http://localhost:8082>. Sign in through the ThoughtKhoral development

@@ -13,9 +13,13 @@ Compose uses project name `thought-khoral`, services and images named
 `thought-khoral-room-gateway`, and `thought-khoral-workspace-ui`. The logical
 volume `thought-khoral-postgres-data` is declared external and resolves to the
 existing physical volume `n2n_postgres-data`; this exact legacy name is a
-persisted-data compatibility exception, not an active product identity. Build contexts consume the sibling
-`thought-khoral-room-gateway` and `thought-khoral-workspace-ui` projects and
-their renamed binary and package artifacts.
+persisted-data compatibility exception, not an active product identity. By
+default, build contexts consume the sibling `thought-khoral-room-gateway` and
+`thought-khoral-workspace-ui` projects and their renamed binary and package
+artifacts. `scripts/build-remote.sh` stages pinned revisions from the public
+GitHub gateway and UI repositories into an equivalent temporary source root;
+`THOUGHT_KHORAL_SOURCE_ROOT` selects that root without changing the
+Containerfile paths.
 
 The gateway receives `THOUGHT_KHORAL_ALLOWED_ORIGINS`,
 `THOUGHT_KHORAL_LISTEN_ADDRESS`, `THOUGHT_KHORAL_OIDC_AUDIENCE`,
