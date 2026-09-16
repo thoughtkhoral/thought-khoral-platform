@@ -169,10 +169,20 @@ await finishAuthorizationCallback();
 const tokens = readTokens();
 const pageUrl = new URL(location.href);
 window.thoughtKhoralWorkspace = {
-  roomId: pageUrl.searchParams.get('room') ?? '10000000-0000-4000-8000-000000000001',
+  roomId: pageUrl.searchParams.get('room') ?? undefined,
   participantRole: tokens?.role ?? 'human',
   getAccessToken,
   createSocket: (url, accessToken) => new AuthenticatedSocket(url, accessToken),
+  onEnterRoom(roomId) {
+    const nextUrl = new URL(location.href);
+    nextUrl.searchParams.set('room', roomId);
+    history.replaceState({}, '', nextUrl);
+  },
+  onLeaveRoom() {
+    const nextUrl = new URL(location.href);
+    nextUrl.searchParams.delete('room');
+    history.replaceState({}, '', nextUrl);
+  },
 };
 
 const appModule = document.querySelector('meta[name="thought-khoral-app-module"]')?.content;

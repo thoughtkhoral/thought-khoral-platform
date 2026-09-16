@@ -97,6 +97,8 @@ command -v podman >/dev/null 2>&1 || fail 'podman is required'
 command -v curl >/dev/null 2>&1 || fail 'curl is required'
 command -v node >/dev/null 2>&1 || fail 'Node.js is required'
 
+node "$platform_dir/scripts/test-bootstrap.mjs"
+
 require_compose_identity
 retry PostgreSQL postgres_ready
 retry 'Keycloak realm discovery' curl --fail --silent --show-error \

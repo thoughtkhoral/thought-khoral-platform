@@ -29,6 +29,9 @@ into `THOUGHT_KHORAL_OIDC_JWKS`, which is the variable consumed by the gateway.
 The UI bootstrap is served as `thought-khoral-bootstrap.js`, discovers the
 application through the `thought-khoral-app-module` metadata name, and provides
 authentication and socket adapters through `window.thoughtKhoralWorkspace`.
+The bootstrap exposes an optional `roomId` suggestion plus `onEnterRoom` and
+`onLeaveRoom` callbacks. It never supplies the hardcoded retained-room fallback
+and never joins a room during module evaluation.
 
 Kubernetes uses namespace `thought-khoral-dev`, ThoughtKhoral-prefixed resource
 names, `app.kubernetes.io/part-of: thought-khoral`, and the
@@ -53,15 +56,18 @@ legacy realm row and previously persisted room event unchanged.
 
 ## Verification
 
-`scripts/smoke.sh` rejects legacy Compose service/container identities and
-waits for all four services. It then launches `scripts/browser-smoke.mjs`,
-which starts with an empty in-memory cookie jar, performs OAuth 2.0
-Authorization Code with PKCE as the documented `alice` development fixture,
-exchanges the returned code, opens the UI WebSocket with the browser Origin,
-sends `session.authenticate`, and joins the fixture room through
-`n2n.room.v1`. The probe succeeds only when the token actor and room replay
-responses prove an authenticated connected room; access and refresh tokens are
-never printed.
+`scripts/test-bootstrap.mjs` checks the host source before the live smoke path:
+the bootstrap must retain PKCE/session-authentication markers, expose an
+optional query room and URL-only lifecycle callbacks, and contain neither a
+hardcoded room fallback nor a client-side `room.join`. `scripts/smoke.sh`
+rejects legacy Compose service/container identities and waits for all four
+services. It then launches `scripts/browser-smoke.mjs`, which starts with an
+empty in-memory cookie jar, performs OAuth 2.0 Authorization Code with PKCE as
+the documented `alice` development fixture, exchanges the returned code, opens
+the UI WebSocket with the browser Origin, sends `session.authenticate`, and
+explicitly joins the fixture room through the retained v1 protocol. The probe succeeds only
+when the token actor and room replay responses prove an authenticated connected
+room; access and refresh tokens are never printed.
 
 `scripts/validate-kube.sh` scans every N2N occurrence. Wire and claim
 compatibility terms are allowed only as exact YAML `value` scalars; database

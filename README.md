@@ -66,7 +66,9 @@ realm using one of these local-only accounts:
 | `facilitator-agent` | `agent-dev-only` | `agent` |
 
 After login, the document title is `ThoughtKhoral workspace` and the browser
-reaches the authenticated collaborative room. The UI uses OAuth 2.0
+shows the explicit room-entry screen. Enter a valid room UUID, such as
+`10000000-0000-4000-8000-000000000001`, and choose **Enter room** to reach the
+authenticated collaborative room. The UI uses OAuth 2.0
 Authorization Code with PKCE. Its browser socket sends a
 `session.authenticate` JSON-RPC request containing the access token as its
 first application message; the gateway never receives a token in a URL.
