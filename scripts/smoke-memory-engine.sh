@@ -15,6 +15,18 @@ printf '%s\n' "$services" | grep -Fxq thought-khoral-memory-engine || {
   exit 1
 }
 
+compose_config=$(podman-compose -f "$compose_file" config)
+memory_service=$(printf '%s\n' "$compose_config" | \
+  awk '
+    /^  thought-khoral-memory-engine:/ { in_memory=1 }
+    in_memory && NR > 1 && /^  [^[:space:]][^:]*:/ && $0 !~ /thought-khoral-memory-engine:/ { exit }
+    in_memory { print }
+  ')
+printf '%s\n' "$memory_service" | grep -q 'DATABASE_URL' && {
+  printf '%s\n' 'memory smoke: memory engine must not receive gateway DATABASE_URL' >&2
+  exit 1
+}
+
 status=$(podman-compose -f "$compose_file" exec -T thought-khoral-memory-engine \
   curl --silent --output /dev/null --write-out '%{http_code}' \
   http://127.0.0.1:43121/healthz)
