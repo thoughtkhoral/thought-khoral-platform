@@ -24,6 +24,7 @@ The Compose project is `thought-khoral`. Its services and local image tags are:
 | `thought-khoral-postgres` | `localhost/thought-khoral-postgres:dev` |
 | `thought-khoral-keycloak` | `localhost/thought-khoral-keycloak:dev` |
 | `thought-khoral-room-gateway` | `localhost/thought-khoral-room-gateway:dev` |
+| `thought-khoral-memory-engine` | `localhost/thought-khoral-memory-engine:dev` |
 | `thought-khoral-workspace-ui` | `localhost/thought-khoral-workspace-ui:dev` |
 
 The stack uses the `thought-khoral-network` network. Its logical

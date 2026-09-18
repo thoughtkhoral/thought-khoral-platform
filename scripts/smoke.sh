@@ -7,6 +7,7 @@ timeout_seconds=${THOUGHT_KHORAL_SMOKE_TIMEOUT_SECONDS:-180}
 expected_services='thought-khoral-postgres
 thought-khoral-keycloak
 thought-khoral-room-gateway
+thought-khoral-memory-engine
 thought-khoral-workspace-ui'
 
 fail() {
@@ -38,6 +39,13 @@ gateway_ready() {
   status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
     http://127.0.0.1:8080/ws) || return 1
   [ "$status" = 400 ]
+}
+
+memory_engine_ready() {
+  status=$(podman-compose -f "$compose_file" exec -T thought-khoral-memory-engine \
+    curl --silent --output /dev/null --write-out '%{http_code}' \
+    http://127.0.0.1:43121/healthz) || return 1
+  [ "$status" = 200 ]
 }
 
 require_compose_identity() {
@@ -104,6 +112,7 @@ retry PostgreSQL postgres_ready
 retry 'Keycloak realm discovery' curl --fail --silent --show-error \
   http://127.0.0.1:8081/realms/thought-khoral/.well-known/openid-configuration
 retry gateway gateway_ready
+retry memory-engine memory_engine_ready
 retry UI curl --fail --silent --show-error http://127.0.0.1:8082/
 require_fresh_browser_entry || \
   fail 'UI entry responses permit a stale pre-migration browser bootstrap'
