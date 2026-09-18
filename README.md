@@ -49,6 +49,13 @@ bash scripts/smoke.sh
 bash scripts/validate-kube.sh
 ```
 
+After changing a locally checked-out gateway or UI, recreate the service
+containers so they use the newly built images:
+
+```sh
+podman-compose up --build -d --force-recreate
+```
+
 To build from GitHub sources instead of local sibling directories, provide one
 ref for each component:
 
