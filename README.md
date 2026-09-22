@@ -28,6 +28,7 @@ The Compose project is `thought-khoral`. Its services and local image tags are:
 | `thought-khoral-memory-engine` | `localhost/thought-khoral-memory-engine:dev` |
 | `thought-khoral-reference-agent` | `localhost/thought-khoral-reference-agent:dev` |
 | `thought-khoral-agent-gateway` | `localhost/thought-khoral-agent-gateway:dev` |
+| `thought-khoral-agent-egress` | `localhost/thought-khoral-agent-egress:dev` |
 | `thought-khoral-workspace-ui` | `localhost/thought-khoral-workspace-ui:dev` |
 
 The stack uses the `thought-khoral-network` network. Its logical
@@ -119,13 +120,27 @@ cluster parity.
 
 ## Local A2A reference-agent boundary
 
-The local A2A vertical slice runs two additional non-root, read-only services.
-Neither publishes a host port or receives `DATABASE_URL`. The reference agent
-binds only `127.0.0.1:9090`; the agent gateway shares its network namespace in
-Compose and its Kubernetes pod as a sidecar, so the pinned Agent Card stays
-loopback-only rather than becoming a routable service. This intentionally
-replaces a Kubernetes `Service`: the sidecar is the only way to preserve the
-reviewed loopback authority without publishing a ClusterIP endpoint.
+The two application services run non-root with read-only filesystems, all
+capabilities dropped, no host ports, and no database credentials. The reference
+agent uses UID 10002 and binds only `127.0.0.1:9090`; the gateway uses UID 10001.
+They share a namespace whose trusted `agent-egress` setup container installs
+IPv4 and IPv6 default-deny OUTPUT filters before either application starts.
+The reference agent can use loopback only. The gateway additionally reaches
+only the resolved room and Keycloak services on TCP 8080 and the configured
+DNS resolver on UDP/TCP 53. Original-destination matching supports Kubernetes
+Service DNAT. Recreate the namespace after service IP changes.
+
+Compose uses an internal network shared only with room gateway and Keycloak.
+Kubernetes uses a NET_ADMIN init container plus `agent-egress-policy.yaml`;
+apply all files in `kube/` with a NetworkPolicy-capable CNI. Adapt the DNS
+selector to the cluster's DNS labels when needed. Podman does not enforce
+NetworkPolicy, so its kernel init filter remains mandatory. Setup failure
+prevents application startup. Only the credential-free setup container has
+NET_ADMIN; neither agent can change the filter. No routable A2A Service exists.
+
+The broker owns the five-minute lease. The dispatcher publishes at most three
+distinct progress updates and one terminal update per invocation. Polling is
+configurable; unsupported lease-duration and progress-rate settings are rejected.
 
 `bash scripts/smoke.sh` authenticates the local Alice fixture, creates a fresh
 room, invokes `summarize-context` and `extract-action-items`, and requires the

@@ -3,6 +3,7 @@ FROM docker.io/library/rust:1.90.0-bookworm AS build
 WORKDIR /source
 COPY thought-khoral-agent-gateway/Cargo.toml thought-khoral-agent-gateway/Cargo.lock ./
 COPY thought-khoral-agent-gateway/src/ src/
+COPY thought-khoral-agent-gateway/vendor/ vendor/
 RUN cargo build --locked --release --bin thought-khoral-agent-gateway
 
 FROM docker.io/library/debian:bookworm-slim

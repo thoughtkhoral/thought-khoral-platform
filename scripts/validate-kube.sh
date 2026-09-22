@@ -3,7 +3,7 @@ set -eu
 
 platform_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 kube_dir="$platform_dir/kube"
-manifests='namespace postgres keycloak gateway ui agent-gateway reference-agent'
+manifests='namespace postgres keycloak gateway ui agent-gateway reference-agent agent-egress-policy'
 validated_manifests=''
 
 fail() {
@@ -147,6 +147,11 @@ require_agent_gateway_isolation() {
 }
 
 require_agent_gateway_isolation
+
+# Podman does not implement NetworkPolicy. The NET_ADMIN init container is
+# therefore mandatory too; it fails pod startup if its kernel filter fails.
+grep -Fq 'name: agent-egress' "$kube_dir/agent-gateway.yaml" || fail 'agent kernel egress init is required'
+grep -Fq 'kind: NetworkPolicy' "$kube_dir/agent-egress-policy.yaml" || fail 'agent NetworkPolicy is required'
 
 for manifest in postgres keycloak gateway ui agent-gateway; do
   path="$kube_dir/$manifest.yaml"

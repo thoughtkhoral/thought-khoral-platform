@@ -8,6 +8,7 @@ expected_services='thought-khoral-postgres
 thought-khoral-keycloak
 thought-khoral-room-gateway
 thought-khoral-memory-engine
+thought-khoral-agent-egress
 thought-khoral-reference-agent
 thought-khoral-agent-gateway
 thought-khoral-workspace-ui'
@@ -90,8 +91,14 @@ require_agent_gateway_isolation() {
       fail "${service_name} must prohibit privilege escalation"
     printf '%s\n' "$service" | grep -q 'tmpfs:' || \
       fail "${service_name} must declare a temporary filesystem"
-    printf '%s\n' "$service" | grep -q 'user: "10001:10001"' || \
+    expected_uid=10001
+    [ "$service_name" != thought-khoral-reference-agent ] || expected_uid=10002
+    printf '%s\n' "$service" | grep -q "user: \"${expected_uid}:${expected_uid}\"" || \
       fail "${service_name} must run as the dedicated non-root identity"
+    printf '%s\n' "$service" | grep -Fq 'cap_drop: [ALL]' || \
+      fail "${service_name} must drop all capabilities"
+    printf '%s\n' "$service" | grep -Fq 'network_mode: service:thought-khoral-agent-egress' || \
+      fail "${service_name} must use the filtered network namespace"
     if printf '%s\n' "$service" | grep -q '^    ports:'; then
       fail "${service_name} must not publish a host port"
     fi
@@ -102,9 +109,6 @@ require_agent_gateway_isolation() {
 
   agent_gateway=$(service_block thought-khoral-agent-gateway "$compose_file")
   reference_agent=$(service_block thought-khoral-reference-agent "$compose_file")
-  printf '%s\n' "$agent_gateway" | \
-    grep -q 'network_mode: service:thought-khoral-reference-agent' || \
-    fail 'agent gateway must share only the reference-agent loopback namespace'
   printf '%s\n' "$agent_gateway" | \
     grep -q 'THOUGHT_KHORAL_REFERENCE_AGENT_CARD_URL: http://127.0.0.1:9090/.well-known/agent-card.json' || \
     fail 'agent gateway must use the pinned reference-agent Card endpoint'
@@ -203,7 +207,9 @@ retry gateway gateway_ready
 retry memory-engine memory_engine_ready
 retry UI curl --fail --silent --show-error http://127.0.0.1:8082/
 require_running_service thought-khoral-reference-agent
+require_running_service thought-khoral-agent-egress
 require_running_service thought-khoral-agent-gateway
+sh "$platform_dir/scripts/smoke-agent-egress.sh"
 require_fresh_browser_entry || \
   fail 'UI entry responses permit a stale pre-migration browser bootstrap'
 retry 'ThoughtKhoral browser title' require_thought_khoral_title
