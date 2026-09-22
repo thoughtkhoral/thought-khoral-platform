@@ -131,6 +131,66 @@ services:
     tmpfs:
       - /tmp
 
+  # The reference agent binds only to loopback. The agent gateway therefore
+  # joins this service's network namespace, mirroring the Kubernetes sidecar
+  # pod without making the A2A endpoint routable on the Compose network.
+  thought-khoral-reference-agent:
+    build:
+      context: ${THOUGHT_KHORAL_SOURCE_ROOT:-..}
+      dockerfile: thought-khoral-platform/containers/reference-agent.Containerfile
+    image: localhost/thought-khoral-reference-agent:dev
+    environment:
+      THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_SECRET: agent-gateway-dev-only
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          curl --fail --silent --show-error
+          --header "Authorization: Bearer $$THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_SECRET"
+          http://127.0.0.1:9090/.well-known/agent-card.json
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks:
+      - thought-khoral-network
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+    user: "10001:10001"
+
+  thought-khoral-agent-gateway:
+    build:
+      context: ${THOUGHT_KHORAL_SOURCE_ROOT:-..}
+      dockerfile: thought-khoral-platform/containers/agent-gateway.Containerfile
+    image: localhost/thought-khoral-agent-gateway:dev
+    depends_on:
+      thought-khoral-keycloak:
+        condition: service_healthy
+      thought-khoral-reference-agent:
+        condition: service_healthy
+      thought-khoral-room-gateway:
+        condition: service_healthy
+    environment:
+      THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_ID: thought-khoral-agent-gateway
+      THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_SECRET: agent-gateway-dev-only
+      THOUGHT_KHORAL_AGENT_LEASE_SECONDS: "30"
+      THOUGHT_KHORAL_AGENT_POLL_MILLIS: "250"
+      THOUGHT_KHORAL_AGENT_UPDATE_RATE_PER_MINUTE: "60"
+      THOUGHT_KHORAL_ALLOWED_HANDOFF_HOSTS: reference-agent.thought-khoral.local
+      THOUGHT_KHORAL_KEYCLOAK_TOKEN_URL: http://thought-khoral-keycloak:8080/realms/thought-khoral/protocol/openid-connect/token
+      THOUGHT_KHORAL_REFERENCE_AGENT_CARD_URL: http://127.0.0.1:9090/.well-known/agent-card.json
+      THOUGHT_KHORAL_REFERENCE_AGENT_HANDOFF_HOST: reference-agent.thought-khoral.local
+      THOUGHT_KHORAL_ROOM_GATEWAY_ORIGIN: http://thought-khoral-room-gateway:8080/
+    network_mode: service:thought-khoral-reference-agent
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+    user: "10001:10001"
+
   thought-khoral-workspace-ui:
     build:
       context: ${THOUGHT_KHORAL_SOURCE_ROOT:-..}

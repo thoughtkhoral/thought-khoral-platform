@@ -8,6 +8,8 @@ expected_services='thought-khoral-postgres
 thought-khoral-keycloak
 thought-khoral-room-gateway
 thought-khoral-memory-engine
+thought-khoral-reference-agent
+thought-khoral-agent-gateway
 thought-khoral-workspace-ui'
 
 fail() {
@@ -48,11 +50,70 @@ memory_engine_ready() {
   [ "$status" = 200 ]
 }
 
+require_running_service() {
+  service_name=$1
+  container_id=$(podman ps --all \
+    --filter "label=io.podman.compose.project=thought-khoral" \
+    --filter "label=io.podman.compose.service=$service_name" \
+    --format '{{.ID}}')
+  [ -n "$container_id" ] || fail "${service_name} is not running; start the complete Compose stack first"
+  status=$(podman inspect --format '{{.State.Status}}' "$container_id") || \
+    fail "${service_name} container could not be inspected"
+  [ "$status" = running ] || fail "${service_name} is ${status}, not running"
+}
+
+service_block() {
+  service_name=$1
+  compose_path=$2
+  awk -v service_name="$service_name" '
+    $0 == "  " service_name ":" { printing = 1 }
+    printing && $0 ~ /^  [[:alnum:]_-]+:$/ && $0 != "  " service_name ":" { exit }
+    printing { print }
+  ' "$compose_path"
+}
+
+require_agent_gateway_isolation() {
+  for service_name in thought-khoral-agent-gateway thought-khoral-reference-agent; do
+    service=$(service_block "$service_name" "$compose_file")
+    [ -n "$service" ] || fail "missing ${service_name} Compose definition"
+    printf '%s\n' "$service" | grep -q 'read_only: true' || \
+      fail "${service_name} must use a read-only root filesystem"
+    printf '%s\n' "$service" | grep -q 'no-new-privileges:true' || \
+      fail "${service_name} must prohibit privilege escalation"
+    printf '%s\n' "$service" | grep -q 'tmpfs:' || \
+      fail "${service_name} must declare a temporary filesystem"
+    printf '%s\n' "$service" | grep -q 'user: "10001:10001"' || \
+      fail "${service_name} must run as the dedicated non-root identity"
+    if printf '%s\n' "$service" | grep -q '^    ports:'; then
+      fail "${service_name} must not publish a host port"
+    fi
+    if printf '%s\n' "$service" | grep -q 'DATABASE_URL'; then
+      fail "${service_name} must not receive DATABASE_URL"
+    fi
+  done
+
+  agent_gateway=$(service_block thought-khoral-agent-gateway "$compose_file")
+  printf '%s\n' "$agent_gateway" | \
+    grep -q 'network_mode: service:thought-khoral-reference-agent' || \
+    fail 'agent gateway must share only the reference-agent loopback namespace'
+  printf '%s\n' "$agent_gateway" | \
+    grep -q 'THOUGHT_KHORAL_REFERENCE_AGENT_CARD_URL: http://127.0.0.1:9090/.well-known/agent-card.json' || \
+    fail 'agent gateway must use the pinned reference-agent Card endpoint'
+  printf '%s\n' "$agent_gateway" | \
+    grep -q 'THOUGHT_KHORAL_ROOM_GATEWAY_ORIGIN: http://thought-khoral-room-gateway:8080/' || \
+    fail 'agent gateway must use the reviewed internal room-gateway authority'
+  printf '%s\n' "$agent_gateway" | \
+    grep -q 'THOUGHT_KHORAL_KEYCLOAK_TOKEN_URL: http://thought-khoral-keycloak:8080/realms/thought-khoral/protocol/openid-connect/token' || \
+    fail 'agent gateway must use the reviewed internal Keycloak token authority'
+}
+
 require_compose_identity() {
   actual_services=$(podman-compose -f "$compose_file" config --services) || \
     fail 'Compose configuration is invalid'
   [ "$actual_services" = "$expected_services" ] || \
     fail "Compose services do not use the ThoughtKhoral identities:\n$actual_services"
+
+  require_agent_gateway_isolation
 
   compose_config=$(podman-compose -f "$compose_file" config) || \
     fail 'Compose configuration is invalid'
@@ -114,9 +175,12 @@ retry 'Keycloak realm discovery' curl --fail --silent --show-error \
 retry gateway gateway_ready
 retry memory-engine memory_engine_ready
 retry UI curl --fail --silent --show-error http://127.0.0.1:8082/
+require_running_service thought-khoral-reference-agent
+require_running_service thought-khoral-agent-gateway
 require_fresh_browser_entry || \
   fail 'UI entry responses permit a stale pre-migration browser bootstrap'
 retry 'ThoughtKhoral browser title' require_thought_khoral_title
 node "$platform_dir/scripts/browser-smoke.mjs"
+node "$platform_dir/scripts/smoke-agent-gateway.mjs"
 
 printf 'smoke: all local services are ready\n'

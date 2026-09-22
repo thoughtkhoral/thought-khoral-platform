@@ -1,0 +1,16 @@
+# The reference agent is a loopback-only sidecar of thought-khoral-agent-gateway.
+# There is intentionally no Kubernetes Service: a ClusterIP would contradict the
+# pinned http://127.0.0.1:9090 Agent Card and create a routable agent endpoint.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: thought-khoral-reference-agent-boundary
+  namespace: thought-khoral-dev
+  labels:
+    app.kubernetes.io/name: thought-khoral-reference-agent
+    app.kubernetes.io/part-of: thought-khoral
+    thought-khoral.redhat.com/environment: development-only
+immutable: true
+data:
+  endpoint: http://127.0.0.1:9090/.well-known/agent-card.json
+  exposure: pod-loopback-only

@@ -3,7 +3,7 @@ set -eu
 
 platform_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 kube_dir="$platform_dir/kube"
-manifests='namespace postgres keycloak gateway ui'
+manifests='namespace postgres keycloak gateway ui agent-gateway reference-agent'
 validated_manifests=''
 
 fail() {
@@ -52,7 +52,38 @@ legacy_identifiers=$(awk '
 
 # Namespace and Service resources are Kubernetes API objects that Podman does
 # not create. Workload manifests keep their Podman-playable Deployment first.
-for manifest in postgres keycloak gateway ui; do
+require_agent_gateway_isolation() {
+  agent_manifest="$kube_dir/agent-gateway.yaml"
+  reference_manifest="$kube_dir/reference-agent.yaml"
+  grep -Fq 'name: thought-khoral-agent-gateway' "$agent_manifest" || \
+    fail 'missing thought-khoral-agent-gateway Kubernetes workload identity'
+  grep -Fq 'name: thought-khoral-reference-agent' "$agent_manifest" || \
+    fail 'reference agent must be the agent-gateway pod sidecar'
+  grep -Fq 'image: localhost/thought-khoral-agent-gateway:dev' "$agent_manifest" || \
+    fail 'agent gateway Kubernetes image identity does not match Compose'
+  grep -Fq 'image: localhost/thought-khoral-reference-agent:dev' "$agent_manifest" || \
+    fail 'reference agent Kubernetes image identity does not match Compose'
+  grep -Fq 'value: http://127.0.0.1:9090/.well-known/agent-card.json' "$agent_manifest" || \
+    fail 'agent gateway Kubernetes Card endpoint is not the pinned loopback endpoint'
+  grep -Fq 'value: http://thought-khoral-room-gateway:8080/' "$agent_manifest" || \
+    fail 'agent gateway Kubernetes room authority does not match Compose'
+  grep -Fq 'value: http://thought-khoral-keycloak:8080/realms/thought-khoral/protocol/openid-connect/token' "$agent_manifest" || \
+    fail 'agent gateway Kubernetes Keycloak token authority does not match Compose'
+  grep -Fq 'endpoint: http://127.0.0.1:9090/.well-known/agent-card.json' "$reference_manifest" || \
+    fail 'reference-agent boundary declaration drifted from the pinned Card endpoint'
+  if grep -Eq 'hostPort:|DATABASE_URL|kind: Service' "$agent_manifest" "$reference_manifest"; then
+    fail 'agent workloads must not publish a host port, receive DATABASE_URL, or declare a routable Service'
+  fi
+  for required in 'runAsNonRoot: true' 'allowPrivilegeEscalation: false' \
+    'readOnlyRootFilesystem: true' 'emptyDir: {}'; do
+    grep -Fq "$required" "$agent_manifest" || \
+      fail "agent gateway Kubernetes workload is missing ${required}"
+  done
+}
+
+require_agent_gateway_isolation
+
+for manifest in postgres keycloak gateway ui agent-gateway; do
   path="$kube_dir/$manifest.yaml"
   podman play kube --replace --start=false "$path"
   validated_manifests="$validated_manifests $path"

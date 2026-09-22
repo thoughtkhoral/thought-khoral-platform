@@ -4,15 +4,16 @@ MVP / active development. This repository composes the local development stack;
 it is not a production deployment distribution.
 
 This independent project builds the
-[room gateway](https://github.com/thoughtkhoral/thought-khoral-room-gateway)
-and [workspace UI](https://github.com/thoughtkhoral/thought-khoral-workspace-ui)
-and composes them with PostgreSQL/pgvector and Keycloak. The default source
+[room gateway](https://github.com/thoughtkhoral/thought-khoral-room-gateway),
+[agent gateway](https://github.com/thoughtkhoral/thought-khoral-agent-gateway),
+and [workspace UI](https://github.com/thoughtkhoral/thought-khoral-workspace-ui),
+then composes them with PostgreSQL/pgvector and Keycloak. The default source
 build uses checked-out sibling repositories; `scripts/build-remote.sh` also
 builds from pinned GitHub revisions. The stack runs through rootless Podman
 without host networking.
 
-The local source-build path expects the platform, gateway, and UI repositories
-to be checked out as sibling directories. See the [local
+The local source-build path expects the platform, room gateway, agent gateway,
+and UI repositories to be checked out as sibling directories. See the [local
 specification index](.ai/specs/README.md), the [repository
 map](https://github.com/thoughtkhoral/thought-khoral/blob/main/docs/repository-map.md),
 and the [organization contribution guide](https://github.com/thoughtkhoral/.github/blob/main/CONTRIBUTING.md).
@@ -25,6 +26,8 @@ The Compose project is `thought-khoral`. Its services and local image tags are:
 | `thought-khoral-keycloak` | `localhost/thought-khoral-keycloak:dev` |
 | `thought-khoral-room-gateway` | `localhost/thought-khoral-room-gateway:dev` |
 | `thought-khoral-memory-engine` | `localhost/thought-khoral-memory-engine:dev` |
+| `thought-khoral-reference-agent` | `localhost/thought-khoral-reference-agent:dev` |
+| `thought-khoral-agent-gateway` | `localhost/thought-khoral-agent-gateway:dev` |
 | `thought-khoral-workspace-ui` | `localhost/thought-khoral-workspace-ui:dev` |
 
 The stack uses the `thought-khoral-network` network. Its logical
@@ -37,9 +40,10 @@ does not abandon persisted PostgreSQL and Keycloak state.
 - A running rootless Podman machine
 - `podman-compose`
 - `curl`
-- For local builds, the gateway and UI repositories checked out beside this
-  platform repository
-- For remote builds, immutable gateway and UI commit or release-tag refs
+- For local builds, the room gateway, agent gateway, and UI repositories checked
+  out beside this platform repository
+- For remote builds, immutable room-gateway, agent-gateway, and UI commit or
+  release-tag refs
 
 ## Start and verify
 
@@ -49,7 +53,7 @@ bash scripts/smoke.sh
 bash scripts/validate-kube.sh
 ```
 
-After changing a locally checked-out gateway or UI, recreate the service
+After changing a locally checked-out room gateway, agent gateway, or UI, recreate the service
 containers so they use the newly built images:
 
 ```sh
@@ -60,7 +64,7 @@ To build from GitHub sources instead of local sibling directories, provide one
 ref for each component:
 
 ```sh
-sh scripts/build-remote.sh <gateway-ref> <ui-ref>
+sh scripts/build-remote.sh <gateway-ref> <agent-gateway-ref> <ui-ref>
 bash scripts/smoke.sh
 ```
 
@@ -112,3 +116,23 @@ names. The validation script rejects active pre-migration labels, then passes ea
 workload manifest to `podman play kube --replace --start=false`;
 Kubernetes-only Namespace and Service resources remain in the same files for
 cluster parity.
+
+## Local A2A reference-agent boundary
+
+The local A2A vertical slice runs two additional non-root, read-only services.
+Neither publishes a host port or receives `DATABASE_URL`. The reference agent
+binds only `127.0.0.1:9090`; the agent gateway shares its network namespace in
+Compose and its Kubernetes pod as a sidecar, so the pinned Agent Card stays
+loopback-only rather than becoming a routable service.
+
+`bash scripts/smoke.sh` authenticates the local Alice fixture, creates a fresh
+room, invokes `summarize-context` and `extract-action-items`, and requires the
+durable sequence of three progress events followed by exactly one cited terminal
+result for each task. Its packet-capture harness creates a hidden Bob-only
+targeted message and verifies that the authorized Alice packet excludes it.
+
+`agent-gateway-dev-only` is a disposable local Keycloak client credential and
+the shared local A2A inbound secret. It is not a production secret. Production
+deployment must inject managed service credentials and the inbound secret, then
+add workload identity and mTLS without changing the room or A2A authority
+boundaries. Do not commit production credentials, certificates, or private keys.

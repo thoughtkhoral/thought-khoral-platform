@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thought-khoral-agent-gateway
+  namespace: thought-khoral-dev
+  labels:
+    app.kubernetes.io/name: thought-khoral-agent-gateway
+    app.kubernetes.io/part-of: thought-khoral
+    thought-khoral.redhat.com/environment: development-only
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: thought-khoral-agent-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: thought-khoral-agent-gateway
+        app.kubernetes.io/part-of: thought-khoral
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+      containers:
+        # The fixed agent Card is intentionally pod-local. The two containers
+        # share loopback, while neither receives a host or ClusterIP endpoint.
+        - name: thought-khoral-reference-agent
+          image: localhost/thought-khoral-reference-agent:dev
+          imagePullPolicy: Never
+          env:
+            - name: THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_SECRET
+              value: agent-gateway-dev-only
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+        - name: thought-khoral-agent-gateway
+          image: localhost/thought-khoral-agent-gateway:dev
+          imagePullPolicy: Never
+          env:
+            - name: THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_ID
+              value: thought-khoral-agent-gateway
+            - name: THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_SECRET
+              value: agent-gateway-dev-only
+            - name: THOUGHT_KHORAL_AGENT_LEASE_SECONDS
+              value: "30"
+            - name: THOUGHT_KHORAL_AGENT_POLL_MILLIS
+              value: "250"
+            - name: THOUGHT_KHORAL_AGENT_UPDATE_RATE_PER_MINUTE
+              value: "60"
+            - name: THOUGHT_KHORAL_ALLOWED_HANDOFF_HOSTS
+              value: reference-agent.thought-khoral.local
+            - name: THOUGHT_KHORAL_KEYCLOAK_TOKEN_URL
+              value: http://thought-khoral-keycloak:8080/realms/thought-khoral/protocol/openid-connect/token
+            - name: THOUGHT_KHORAL_REFERENCE_AGENT_CARD_URL
+              value: http://127.0.0.1:9090/.well-known/agent-card.json
+            - name: THOUGHT_KHORAL_REFERENCE_AGENT_HANDOFF_HOST
+              value: reference-agent.thought-khoral.local
+            - name: THOUGHT_KHORAL_ROOM_GATEWAY_ORIGIN
+              value: http://thought-khoral-room-gateway:8080/
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

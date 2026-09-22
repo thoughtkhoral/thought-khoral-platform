@@ -10,7 +10,7 @@ build_script="$platform_dir/scripts/build-remote.sh"
 }
 
 help_output=$($build_script --help)
-printf '%s\n' "$help_output" | grep -Fq '<gateway-ref> <ui-ref>' || {
+printf '%s\n' "$help_output" | grep -Fq '<gateway-ref> <agent-gateway-ref> <ui-ref>' || {
   printf 'FAIL: remote build help does not document pinned component refs\n' >&2
   exit 1
 }
@@ -21,6 +21,10 @@ grep -Fq 'https://github.com/thoughtkhoral/thought-khoral-room-gateway.git' "$bu
 }
 grep -Fq 'https://github.com/thoughtkhoral/thought-khoral-workspace-ui.git' "$build_script" || {
   printf 'FAIL: remote build does not identify the UI repository\n' >&2
+  exit 1
+}
+grep -Fq 'https://github.com/thoughtkhoral/thought-khoral-agent-gateway.git' "$build_script" || {
+  printf 'FAIL: remote build does not identify the agent-gateway repository\n' >&2
   exit 1
 }
 grep -Fq 'THOUGHT_KHORAL_SOURCE_ROOT' "$platform_dir/compose.yaml" || {

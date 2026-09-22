@@ -2,11 +2,12 @@
 set -eu
 
 gateway_repo='https://github.com/thoughtkhoral/thought-khoral-room-gateway.git'
+agent_gateway_repo='https://github.com/thoughtkhoral/thought-khoral-agent-gateway.git'
 ui_repo='https://github.com/thoughtkhoral/thought-khoral-workspace-ui.git'
 platform_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
 usage() {
-  printf 'Usage: %s <gateway-ref> <ui-ref>\n' "$0"
+  printf 'Usage: %s <gateway-ref> <agent-gateway-ref> <ui-ref>\n' "$0"
   printf '\nBuilds and starts the platform from pinned GitHub component revisions.\n'
   printf 'Refs may be release tags or immutable commit IDs.\n'
 }
@@ -21,16 +22,17 @@ if [ "${1:-}" = '--help' ] || [ "${1:-}" = '-h' ]; then
   exit 0
 fi
 
-[ "$#" -eq 2 ] || {
+[ "$#" -eq 3 ] || {
   usage >&2
   exit 2
 }
 
 gateway_ref=$1
-ui_ref=$2
+agent_gateway_ref=$2
+ui_ref=$3
 
-case "$gateway_ref:$ui_ref" in
-  -*:*|*:-*|:*) fail 'component refs must be non-empty and must not begin with -' ;;
+case "$gateway_ref:$agent_gateway_ref:$ui_ref" in
+  -*:*:*|*:-*:*|*:*:-*|:*|*::*|*:*:) fail 'component refs must be non-empty and must not begin with -' ;;
 esac
 
 command -v git >/dev/null 2>&1 || fail 'git is required'
@@ -46,6 +48,7 @@ trap cleanup EXIT INT TERM
 mkdir -p \
   "$context_root/thought-khoral-platform" \
   "$context_root/thought-khoral-room-gateway" \
+  "$context_root/thought-khoral-agent-gateway" \
   "$context_root/thought-khoral-workspace-ui"
 
 clone_at_ref() {
@@ -81,6 +84,8 @@ tar -C "$platform_dir" \
 
 clone_at_ref "$gateway_repo" \
   "$context_root/thought-khoral-room-gateway" "$gateway_ref"
+clone_at_ref "$agent_gateway_repo" \
+  "$context_root/thought-khoral-agent-gateway" "$agent_gateway_ref"
 clone_at_ref "$ui_repo" \
   "$context_root/thought-khoral-workspace-ui" "$ui_ref"
 
