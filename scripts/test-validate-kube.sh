@@ -70,6 +70,38 @@ elif ! printf '%s\n' "$output" | grep -Fq 'reference agent must not receive the 
   failures=$((failures + 1))
 fi
 
+cp "$platform_dir/kube/agent-gateway.yaml" "$fixture_dir/kube/agent-gateway.yaml"
+awk '
+  /^[[:space:]]+volumeMounts:/ { in_volume_mounts = 1; print; next }
+  in_volume_mounts && /^        - name:/ { in_volume_mounts = 0 }
+  in_volume_mounts && /^[[:space:]]+- name:/ {
+    sub(/name: .*/, "name: shared-agent-tmp")
+  }
+  { print }
+' "$fixture_dir/kube/agent-gateway.yaml" >"$fixture_dir/kube/agent-gateway.yaml.next"
+mv "$fixture_dir/kube/agent-gateway.yaml.next" "$fixture_dir/kube/agent-gateway.yaml"
+
+if output=$(PATH="$fixture_dir/bin:$PATH" sh "$fixture_dir/scripts/validate-kube.sh" 2>&1); then
+  printf 'test-validate-kube: validator accepted a shared writable agent /tmp volume\n' >&2
+  failures=$((failures + 1))
+elif ! printf '%s\n' "$output" | grep -Fq 'agent containers must mount distinct /tmp volumes'; then
+  printf 'test-validate-kube: shared /tmp rejection was not identified\n' >&2
+  failures=$((failures + 1))
+fi
+
+cp "$platform_dir/kube/agent-gateway.yaml" "$fixture_dir/kube/agent-gateway.yaml"
+awk '$0 !~ /^[[:space:]]+medium: Memory$/ { print }' \
+  "$fixture_dir/kube/agent-gateway.yaml" >"$fixture_dir/kube/agent-gateway.yaml.next"
+mv "$fixture_dir/kube/agent-gateway.yaml.next" "$fixture_dir/kube/agent-gateway.yaml"
+
+if output=$(PATH="$fixture_dir/bin:$PATH" sh "$fixture_dir/scripts/validate-kube.sh" 2>&1); then
+  printf 'test-validate-kube: validator accepted a disk-backed agent /tmp volume\n' >&2
+  failures=$((failures + 1))
+elif ! printf '%s\n' "$output" | grep -Fq 'agent /tmp volumes must use memory-backed emptyDir'; then
+  printf 'test-validate-kube: disk-backed /tmp rejection was not identified\n' >&2
+  failures=$((failures + 1))
+fi
+
 [ "$failures" -eq 0 ] || exit 1
 
 printf 'test-validate-kube: compatibility allowlist and legacy-label rejection passed\n'

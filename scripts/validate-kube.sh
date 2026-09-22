@@ -71,6 +71,24 @@ require_agent_gateway_isolation() {
       reading_value && $1 == "value:" { print $2; exit }
     '
   }
+  tmp_volume_name() {
+    container=$1
+    printf '%s\n' "$container" | awk '
+      /^[[:space:]]+volumeMounts:/ { reading_mounts = 1; next }
+      reading_mounts && /^[[:space:]]+- name:/ { volume_name = $3; next }
+      reading_mounts && $1 == "mountPath:" && $2 == "/tmp" { print volume_name; exit }
+    '
+  }
+  memory_backed_volume() {
+    volume_name=$1
+    awk -v volume_name="$volume_name" '
+      $0 == "      volumes:" { reading_volumes = 1; next }
+      reading_volumes && $0 == "        - name: " volume_name { selected = 1; found = 1; next }
+      selected && /^        - name:/ { selected = 0 }
+      selected && $1 == "medium:" && $2 == "Memory" { memory = 1 }
+      END { exit !(found && memory) }
+    ' "$agent_manifest"
+  }
   grep -Fq 'name: thought-khoral-agent-gateway' "$agent_manifest" || \
     fail 'missing thought-khoral-agent-gateway Kubernetes workload identity'
   grep -Fq 'name: thought-khoral-reference-agent' "$agent_manifest" || \
@@ -107,11 +125,22 @@ require_agent_gateway_isolation() {
   [ "$reference_inbound" != "$gateway_client" ] || \
     fail 'A2A inbound secret must be distinct from the Keycloak client credential'
 
+  reference_tmp=$(tmp_volume_name "$reference_agent")
+  gateway_tmp=$(tmp_volume_name "$agent_gateway")
+  [ -n "$reference_tmp" ] && [ -n "$gateway_tmp" ] || \
+    fail 'each agent container must mount a writable /tmp volume'
+  [ "$reference_tmp" != "$gateway_tmp" ] || \
+    fail 'agent containers must mount distinct /tmp volumes'
+  memory_backed_volume "$reference_tmp" || \
+    fail 'agent /tmp volumes must use memory-backed emptyDir'
+  memory_backed_volume "$gateway_tmp" || \
+    fail 'agent /tmp volumes must use memory-backed emptyDir'
+
   if grep -Eq 'hostPort:|DATABASE_URL|kind: Service' "$agent_manifest" "$reference_manifest"; then
     fail 'agent workloads must not publish a host port, receive DATABASE_URL, or declare a routable Service'
   fi
   for required in 'runAsNonRoot: true' 'allowPrivilegeEscalation: false' \
-    'readOnlyRootFilesystem: true' 'emptyDir: {}'; do
+    'readOnlyRootFilesystem: true'; do
     grep -Fq "$required" "$agent_manifest" || \
       fail "agent gateway Kubernetes workload is missing ${required}"
   done

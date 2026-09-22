@@ -38,7 +38,7 @@ spec:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
           volumeMounts:
-            - name: tmp
+            - name: reference-agent-tmp
               mountPath: /tmp
         - name: thought-khoral-agent-gateway
           image: localhost/thought-khoral-agent-gateway:dev
@@ -73,8 +73,12 @@ spec:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
           volumeMounts:
-            - name: tmp
+            - name: agent-gateway-tmp
               mountPath: /tmp
       volumes:
-        - name: tmp
-          emptyDir: {}
+        - name: reference-agent-tmp
+          emptyDir:
+            medium: Memory
+        - name: agent-gateway-tmp
+          emptyDir:
+            medium: Memory

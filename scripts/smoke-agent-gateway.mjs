@@ -16,6 +16,7 @@ const workloadClientId = 'thought-khoral-agent-gateway';
 const workloadClientSecret =
   process.env.THOUGHT_KHORAL_SMOKE_AGENT_GATEWAY_SECRET ?? 'agent-gateway-client-dev-only';
 const timeoutMs = Number(process.env.THOUGHT_KHORAL_SMOKE_AGENT_TIMEOUT_MS ?? 30_000);
+const terminalObservationMs = 2_000;
 const referenceAgentId = '74686f75-6768-746b-686f-72616c000003';
 const hiddenText = 'hidden targeted smoke packet marker';
 
@@ -219,26 +220,48 @@ class WebSocketConnection {
     this.socket.write(encodeClientFrame(JSON.stringify(message)));
   }
 
-  receiveJson() {
+  receiveJson(waitMillis = timeoutMs) {
     if (this.messages.length > 0) return Promise.resolve(this.messages.shift());
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        const index = this.waiters.findIndex((waiter) => waiter.resolve === resolve);
-        if (index >= 0) this.waiters.splice(index, 1);
-        reject(new Error(`WebSocket response timed out after ${timeoutMs}ms`));
-      }, timeoutMs);
-      this.waiters.push({
-        reject,
+      let timer;
+      const waiter = {
+        reject: (error) => {
+          clearTimeout(timer);
+          reject(error);
+        },
         resolve: (message) => {
           clearTimeout(timer);
           resolve(message);
         },
-      });
+      };
+      timer = setTimeout(() => {
+        const index = this.waiters.indexOf(waiter);
+        if (index >= 0) this.waiters.splice(index, 1);
+        const error = new Error(`WebSocket response timed out after ${waitMillis}ms`);
+        error.code = 'THOUGHT_KHORAL_SMOKE_TIMEOUT';
+        reject(error);
+      }, waitMillis);
+      this.waiters.push(waiter);
     });
   }
 
   close() {
     this.socket.end(encodeClientFrame('', 0x8));
+  }
+}
+
+async function assertNoPostTerminalLifecycle(socket, taskId, skillId) {
+  const deadline = Date.now() + terminalObservationMs;
+  while (Date.now() < deadline) {
+    try {
+      const event = await socket.receiveJson(Math.max(1, deadline - Date.now()));
+      if (event.payload?.taskId === taskId) {
+        fail(`${skillId} emitted a post-terminal lifecycle event: ${event.eventType}`);
+      }
+    } catch (error) {
+      if (error?.code === 'THOUGHT_KHORAL_SMOKE_TIMEOUT') return;
+      throw error;
+    }
   }
 }
 
@@ -566,6 +589,7 @@ async function invokeSkill(aliceSocket, roomId, skillId, input, hiddenEventId) {
   if (taskEvents.filter((event) => event.eventType === 'agent.task.succeeded').length !== 1) {
     fail(`${skillId} emitted more than one terminal result`);
   }
+  await assertNoPostTerminalLifecycle(aliceSocket, taskId, skillId);
   return taskId;
 }
 

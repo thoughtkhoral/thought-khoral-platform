@@ -123,13 +123,18 @@ The local A2A vertical slice runs two additional non-root, read-only services.
 Neither publishes a host port or receives `DATABASE_URL`. The reference agent
 binds only `127.0.0.1:9090`; the agent gateway shares its network namespace in
 Compose and its Kubernetes pod as a sidecar, so the pinned Agent Card stays
-loopback-only rather than becoming a routable service.
+loopback-only rather than becoming a routable service. This intentionally
+replaces a Kubernetes `Service`: the sidecar is the only way to preserve the
+reviewed loopback authority without publishing a ClusterIP endpoint.
 
 `bash scripts/smoke.sh` authenticates the local Alice fixture, creates a fresh
 room, invokes `summarize-context` and `extract-action-items`, and requires the
 durable sequence of three progress events followed by exactly one cited terminal
 result for each task. Its packet-capture harness creates a hidden Bob-only
 targeted message and verifies that the authorized Alice packet excludes it.
+After each terminal result, it continues observing the task for two seconds
+(eight local polling intervals) and rejects any post-terminal lifecycle event,
+including a delayed second success.
 
 `agent-gateway-client-dev-only` is the disposable local Keycloak client
 credential; `reference-agent-inbound-dev-only` is the distinct local A2A
