@@ -55,6 +55,22 @@ legacy_identifiers=$(awk '
 require_agent_gateway_isolation() {
   agent_manifest="$kube_dir/agent-gateway.yaml"
   reference_manifest="$kube_dir/reference-agent.yaml"
+  container_block() {
+    container_name=$1
+    awk -v container_name="$container_name" '
+      $0 == "        - name: " container_name { printing = 1 }
+      printing && $0 ~ /^        - name:/ && $0 != "        - name: " container_name { exit }
+      printing { print }
+    ' "$agent_manifest"
+  }
+  environment_value() {
+    container=$1
+    variable_name=$2
+    printf '%s\n' "$container" | awk -v variable_name="$variable_name" '
+      $0 ~ "^[[:space:]]+- name: " variable_name "$" { reading_value = 1; next }
+      reading_value && $1 == "value:" { print $2; exit }
+    '
+  }
   grep -Fq 'name: thought-khoral-agent-gateway' "$agent_manifest" || \
     fail 'missing thought-khoral-agent-gateway Kubernetes workload identity'
   grep -Fq 'name: thought-khoral-reference-agent' "$agent_manifest" || \
@@ -71,6 +87,26 @@ require_agent_gateway_isolation() {
     fail 'agent gateway Kubernetes Keycloak token authority does not match Compose'
   grep -Fq 'endpoint: http://127.0.0.1:9090/.well-known/agent-card.json' "$reference_manifest" || \
     fail 'reference-agent boundary declaration drifted from the pinned Card endpoint'
+
+  reference_agent=$(container_block thought-khoral-reference-agent)
+  agent_gateway=$(container_block thought-khoral-agent-gateway)
+  if printf '%s\n' "$reference_agent" | grep -Fq 'name: THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_SECRET'; then
+    fail 'reference agent must not receive the Keycloak client credential'
+  fi
+  printf '%s\n' "$reference_agent" | grep -Fq 'name: THOUGHT_KHORAL_REFERENCE_AGENT_INBOUND_SECRET' || \
+    fail 'reference agent must receive the distinct A2A inbound secret'
+  printf '%s\n' "$agent_gateway" | grep -Fq 'name: THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_SECRET' || \
+    fail 'agent gateway must receive the Keycloak client credential'
+  printf '%s\n' "$agent_gateway" | grep -Fq 'name: THOUGHT_KHORAL_REFERENCE_AGENT_INBOUND_SECRET' || \
+    fail 'agent gateway must receive the A2A inbound secret'
+  reference_inbound=$(environment_value "$reference_agent" THOUGHT_KHORAL_REFERENCE_AGENT_INBOUND_SECRET)
+  gateway_inbound=$(environment_value "$agent_gateway" THOUGHT_KHORAL_REFERENCE_AGENT_INBOUND_SECRET)
+  gateway_client=$(environment_value "$agent_gateway" THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_SECRET)
+  [ -n "$reference_inbound" ] && [ "$reference_inbound" = "$gateway_inbound" ] || \
+    fail 'agent gateway and reference agent must share one non-empty inbound secret'
+  [ "$reference_inbound" != "$gateway_client" ] || \
+    fail 'A2A inbound secret must be distinct from the Keycloak client credential'
+
   if grep -Eq 'hostPort:|DATABASE_URL|kind: Service' "$agent_manifest" "$reference_manifest"; then
     fail 'agent workloads must not publish a host port, receive DATABASE_URL, or declare a routable Service'
   fi

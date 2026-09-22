@@ -131,8 +131,11 @@ durable sequence of three progress events followed by exactly one cited terminal
 result for each task. Its packet-capture harness creates a hidden Bob-only
 targeted message and verifies that the authorized Alice packet excludes it.
 
-`agent-gateway-dev-only` is a disposable local Keycloak client credential and
-the shared local A2A inbound secret. It is not a production secret. Production
-deployment must inject managed service credentials and the inbound secret, then
-add workload identity and mTLS without changing the room or A2A authority
-boundaries. Do not commit production credentials, certificates, or private keys.
+`agent-gateway-client-dev-only` is the disposable local Keycloak client
+credential; `reference-agent-inbound-dev-only` is the distinct local A2A
+inbound bearer secret. The reference-agent receives only the latter, so it
+cannot mint gateway workload tokens. Neither is a production secret.
+Production deployment must inject managed service credentials and a distinct
+inbound secret, then add workload identity and mTLS without changing the room
+or A2A authority boundaries. Do not commit production credentials,
+certificates, or private keys.

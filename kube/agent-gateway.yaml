@@ -29,8 +29,8 @@ spec:
           image: localhost/thought-khoral-reference-agent:dev
           imagePullPolicy: Never
           env:
-            - name: THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_SECRET
-              value: agent-gateway-dev-only
+            - name: THOUGHT_KHORAL_REFERENCE_AGENT_INBOUND_SECRET
+              value: reference-agent-inbound-dev-only
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -47,7 +47,7 @@ spec:
             - name: THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_ID
               value: thought-khoral-agent-gateway
             - name: THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_SECRET
-              value: agent-gateway-dev-only
+              value: agent-gateway-client-dev-only
             - name: THOUGHT_KHORAL_AGENT_LEASE_SECONDS
               value: "30"
             - name: THOUGHT_KHORAL_AGENT_POLL_MILLIS
@@ -60,6 +60,8 @@ spec:
               value: http://thought-khoral-keycloak:8080/realms/thought-khoral/protocol/openid-connect/token
             - name: THOUGHT_KHORAL_REFERENCE_AGENT_CARD_URL
               value: http://127.0.0.1:9090/.well-known/agent-card.json
+            - name: THOUGHT_KHORAL_REFERENCE_AGENT_INBOUND_SECRET
+              value: reference-agent-inbound-dev-only
             - name: THOUGHT_KHORAL_REFERENCE_AGENT_HANDOFF_HOST
               value: reference-agent.thought-khoral.local
             - name: THOUGHT_KHORAL_ROOM_GATEWAY_ORIGIN

@@ -140,13 +140,13 @@ services:
       dockerfile: thought-khoral-platform/containers/reference-agent.Containerfile
     image: localhost/thought-khoral-reference-agent:dev
     environment:
-      THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_SECRET: agent-gateway-dev-only
+      THOUGHT_KHORAL_REFERENCE_AGENT_INBOUND_SECRET: reference-agent-inbound-dev-only
     healthcheck:
       test:
         - CMD-SHELL
         - >-
           curl --fail --silent --show-error
-          --header "Authorization: Bearer $$THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_SECRET"
+          --header "Authorization: Bearer $$THOUGHT_KHORAL_REFERENCE_AGENT_INBOUND_SECRET"
           http://127.0.0.1:9090/.well-known/agent-card.json
       interval: 2s
       timeout: 3s
@@ -174,13 +174,14 @@ services:
         condition: service_healthy
     environment:
       THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_ID: thought-khoral-agent-gateway
-      THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_SECRET: agent-gateway-dev-only
+      THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_SECRET: agent-gateway-client-dev-only
       THOUGHT_KHORAL_AGENT_LEASE_SECONDS: "30"
       THOUGHT_KHORAL_AGENT_POLL_MILLIS: "250"
       THOUGHT_KHORAL_AGENT_UPDATE_RATE_PER_MINUTE: "60"
       THOUGHT_KHORAL_ALLOWED_HANDOFF_HOSTS: reference-agent.thought-khoral.local
       THOUGHT_KHORAL_KEYCLOAK_TOKEN_URL: http://thought-khoral-keycloak:8080/realms/thought-khoral/protocol/openid-connect/token
       THOUGHT_KHORAL_REFERENCE_AGENT_CARD_URL: http://127.0.0.1:9090/.well-known/agent-card.json
+      THOUGHT_KHORAL_REFERENCE_AGENT_INBOUND_SECRET: reference-agent-inbound-dev-only
       THOUGHT_KHORAL_REFERENCE_AGENT_HANDOFF_HOST: reference-agent.thought-khoral.local
       THOUGHT_KHORAL_ROOM_GATEWAY_ORIGIN: http://thought-khoral-room-gateway:8080/
     network_mode: service:thought-khoral-reference-agent

@@ -48,6 +48,28 @@ assert_rejected 'an active legacy n2n_role label key' \
 assert_rejected 'a legacy app name containing an allowed contract value' \
   '    app.kubernetes.io/name: n2n-gateway-n2n.room.v1'
 
+rm -f "$fixture_dir/kube/legacy-label.yaml"
+awk '
+  /value: reference-agent-inbound-dev-only/ && !injected {
+    print
+    print "            - name: THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_SECRET"
+    print "              value: forbidden-client-secret"
+    injected = 1
+    next
+  }
+  { print }
+  END { if (!injected) exit 2 }
+' "$fixture_dir/kube/agent-gateway.yaml" >"$fixture_dir/kube/agent-gateway.yaml.next"
+mv "$fixture_dir/kube/agent-gateway.yaml.next" "$fixture_dir/kube/agent-gateway.yaml"
+
+if output=$(PATH="$fixture_dir/bin:$PATH" sh "$fixture_dir/scripts/validate-kube.sh" 2>&1); then
+  printf 'test-validate-kube: validator accepted a Keycloak client secret in the reference-agent container\n' >&2
+  failures=$((failures + 1))
+elif ! printf '%s\n' "$output" | grep -Fq 'reference agent must not receive the Keycloak client credential'; then
+  printf 'test-validate-kube: credential-separation rejection was not identified\n' >&2
+  failures=$((failures + 1))
+fi
+
 [ "$failures" -eq 0 ] || exit 1
 
 printf 'test-validate-kube: compatibility allowlist and legacy-label rejection passed\n'

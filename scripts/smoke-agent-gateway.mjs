@@ -14,7 +14,7 @@ const workspaceClientId =
   process.env.THOUGHT_KHORAL_SMOKE_CLIENT_ID ?? 'thought-khoral-workspace';
 const workloadClientId = 'thought-khoral-agent-gateway';
 const workloadClientSecret =
-  process.env.THOUGHT_KHORAL_SMOKE_AGENT_GATEWAY_SECRET ?? 'agent-gateway-dev-only';
+  process.env.THOUGHT_KHORAL_SMOKE_AGENT_GATEWAY_SECRET ?? 'agent-gateway-client-dev-only';
 const timeoutMs = Number(process.env.THOUGHT_KHORAL_SMOKE_AGENT_TIMEOUT_MS ?? 30_000);
 const referenceAgentId = '74686f75-6768-746b-686f-72616c000003';
 const hiddenText = 'hidden targeted smoke packet marker';

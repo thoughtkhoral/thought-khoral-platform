@@ -72,6 +72,14 @@ service_block() {
   ' "$compose_path"
 }
 
+compose_environment_value() {
+  service=$1
+  key=$2
+  printf '%s\n' "$service" | awk -v key="$key" '
+    $1 == key ":" { print $2; exit }
+  '
+}
+
 require_agent_gateway_isolation() {
   for service_name in thought-khoral-agent-gateway thought-khoral-reference-agent; do
     service=$(service_block "$service_name" "$compose_file")
@@ -93,6 +101,7 @@ require_agent_gateway_isolation() {
   done
 
   agent_gateway=$(service_block thought-khoral-agent-gateway "$compose_file")
+  reference_agent=$(service_block thought-khoral-reference-agent "$compose_file")
   printf '%s\n' "$agent_gateway" | \
     grep -q 'network_mode: service:thought-khoral-reference-agent' || \
     fail 'agent gateway must share only the reference-agent loopback namespace'
@@ -105,6 +114,24 @@ require_agent_gateway_isolation() {
   printf '%s\n' "$agent_gateway" | \
     grep -q 'THOUGHT_KHORAL_KEYCLOAK_TOKEN_URL: http://thought-khoral-keycloak:8080/realms/thought-khoral/protocol/openid-connect/token' || \
     fail 'agent gateway must use the reviewed internal Keycloak token authority'
+
+  if printf '%s\n' "$reference_agent" | grep -q 'THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_SECRET'; then
+    fail 'reference agent must not receive the Keycloak client credential'
+  fi
+  printf '%s\n' "$reference_agent" | grep -q 'THOUGHT_KHORAL_REFERENCE_AGENT_INBOUND_SECRET' || \
+    fail 'reference agent must receive the distinct A2A inbound secret'
+  printf '%s\n' "$agent_gateway" | grep -q 'THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_SECRET' || \
+    fail 'agent gateway must receive the Keycloak client credential'
+  printf '%s\n' "$agent_gateway" | grep -q 'THOUGHT_KHORAL_REFERENCE_AGENT_INBOUND_SECRET' || \
+    fail 'agent gateway must receive the A2A inbound secret'
+
+  reference_inbound=$(compose_environment_value "$reference_agent" THOUGHT_KHORAL_REFERENCE_AGENT_INBOUND_SECRET)
+  gateway_inbound=$(compose_environment_value "$agent_gateway" THOUGHT_KHORAL_REFERENCE_AGENT_INBOUND_SECRET)
+  gateway_client=$(compose_environment_value "$agent_gateway" THOUGHT_KHORAL_AGENT_GATEWAY_CLIENT_SECRET)
+  [ -n "$reference_inbound" ] && [ "$reference_inbound" = "$gateway_inbound" ] || \
+    fail 'agent gateway and reference agent must share one non-empty inbound secret'
+  [ "$reference_inbound" != "$gateway_client" ] || \
+    fail 'A2A inbound secret must be distinct from the Keycloak client credential'
 }
 
 require_compose_identity() {
