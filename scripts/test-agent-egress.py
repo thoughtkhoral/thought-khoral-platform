@@ -221,7 +221,7 @@ esac
         peers = {name for name, service in services.items() if "thought-khoral-agent-internal" in service.get("networks", [])}
         self.assertEqual(peers, {"thought-khoral-agent-egress", "thought-khoral-room-gateway", "thought-khoral-keycloak"})
 
-    def test_compose_agents_die_with_the_egress_pid_namespace_owner(self):
+    def test_compose_agents_share_the_egress_pid_namespace(self):
         import yaml
         config = yaml.safe_load((ROOT / "compose.yaml").read_text())
         services = config["services"]
