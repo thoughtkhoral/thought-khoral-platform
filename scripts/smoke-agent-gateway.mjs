@@ -377,7 +377,9 @@ async function sendTargetedHiddenMessage(bobSocket, bobId, roomId) {
   const params = rpcParams(roomId);
   params.text = hiddenText;
   params.delivery = 'mentioned';
-  params.mentions = [{ id: bobId, token: 'bob', type: 'participant' }];
+  // The room enforces its canonical roster token. Keycloak's Bob fixture has
+  // display name "Bob Human", which normalizes deterministically to this.
+  params.mentions = [{ id: bobId, token: 'bob-human', type: 'participant' }];
   bobSocket.sendJson({
     id: `agent-smoke-hidden-${randomUUID()}`,
     jsonrpc: '2.0',
