@@ -197,6 +197,7 @@ services:
       context: ${THOUGHT_KHORAL_SOURCE_ROOT:-..}
       dockerfile: thought-khoral-platform/containers/agent-gateway.Containerfile
     image: localhost/thought-khoral-agent-gateway:dev
+    restart: on-failure:3
     depends_on:
       thought-khoral-keycloak:
         condition: service_healthy
