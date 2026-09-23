@@ -221,6 +221,23 @@ esac
         peers = {name for name, service in services.items() if "thought-khoral-agent-internal" in service.get("networks", [])}
         self.assertEqual(peers, {"thought-khoral-agent-egress", "thought-khoral-room-gateway", "thought-khoral-keycloak"})
 
+    def test_compose_agents_die_with_the_egress_pid_namespace_owner(self):
+        import yaml
+        config = yaml.safe_load((ROOT / "compose.yaml").read_text())
+        services = config["services"]
+        egress = services["thought-khoral-agent-egress"]
+        self.assertEqual(egress.get("container_name"), "thought-khoral-agent-egress")
+        self.assertEqual(egress.get("cap_add"), ["NET_ADMIN"])
+        for name, uid in [("thought-khoral-agent-gateway", 10001),
+                          ("thought-khoral-reference-agent", 10002)]:
+            service = services[name]
+            self.assertEqual(service.get("pid"), "container:thought-khoral-agent-egress")
+            self.assertEqual(service.get("network_mode"), "service:thought-khoral-agent-egress")
+            self.assertEqual(service.get("user"), f"{uid}:{uid}")
+            self.assertEqual(service.get("cap_drop"), ["ALL"])
+            self.assertTrue(service.get("read_only"))
+            self.assertIn("no-new-privileges:true", service.get("security_opt", []))
+
     def test_kubernetes_egress_requires_both_kernel_filter_and_network_policy(self):
         import yaml
         deployment = next(yaml.safe_load_all((ROOT / "kube/agent-gateway.yaml").read_text()))

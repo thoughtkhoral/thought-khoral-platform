@@ -135,6 +135,7 @@ services:
 
   # Trusted setup installs default-deny kernel egress before either agent starts.
   thought-khoral-agent-egress:
+    container_name: thought-khoral-agent-egress
     build:
       context: ${THOUGHT_KHORAL_SOURCE_ROOT:-..}
       dockerfile: thought-khoral-platform/containers/agent-egress.Containerfile
@@ -184,6 +185,7 @@ services:
       timeout: 3s
       retries: 30
     network_mode: service:thought-khoral-agent-egress
+    pid: container:thought-khoral-agent-egress
     cap_drop: [ALL]
     read_only: true
     security_opt:
@@ -216,6 +218,7 @@ services:
       THOUGHT_KHORAL_REFERENCE_AGENT_HANDOFF_HOST: reference-agent.thought-khoral.local
       THOUGHT_KHORAL_ROOM_GATEWAY_ORIGIN: http://thought-khoral-room-gateway:8080/
     network_mode: service:thought-khoral-agent-egress
+    pid: container:thought-khoral-agent-egress
     cap_drop: [ALL]
     read_only: true
     security_opt:
