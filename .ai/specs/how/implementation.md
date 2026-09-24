@@ -67,8 +67,11 @@ Both agents share the egress container's network and PID namespaces. Exiting the
 the bootstrap must retain PKCE/session-authentication markers, expose an
 optional query room and URL-only lifecycle callbacks, and contain neither a
 hardcoded room fallback nor a client-side `room.join`. `scripts/smoke.sh`
-rejects legacy Compose service/container identities and waits for all four
-services. It then launches `scripts/browser-smoke.mjs`, which starts with an
+rejects legacy Compose service/container identities, checks the complete
+eight-service Compose roster, probes readiness of PostgreSQL, Keycloak, room
+gateway, memory engine, and UI, and checks that the egress owner and both agent
+containers are running. It then launches `scripts/browser-smoke.mjs`, which
+starts with an
 empty in-memory cookie jar, performs OAuth 2.0 Authorization Code with PKCE as
 the documented `alice` development fixture, exchanges the returned code, opens
 the UI WebSocket with the browser Origin, sends `session.authenticate`, and
