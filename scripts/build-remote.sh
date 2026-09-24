@@ -2,12 +2,13 @@
 set -eu
 
 gateway_repo='https://github.com/thoughtkhoral/thought-khoral-room-gateway.git'
+memory_engine_repo='https://github.com/thoughtkhoral/thought-khoral-memory-engine.git'
 agent_gateway_repo='https://github.com/thoughtkhoral/thought-khoral-agent-gateway.git'
 ui_repo='https://github.com/thoughtkhoral/thought-khoral-workspace-ui.git'
 platform_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
 usage() {
-  printf 'Usage: %s <gateway-ref> <agent-gateway-ref> <ui-ref>\n' "$0"
+  printf 'Usage: %s <gateway-ref> <memory-engine-ref> <agent-gateway-ref> <ui-ref>\n' "$0"
   printf '\nBuilds and starts the platform from pinned GitHub component revisions.\n'
   printf 'Refs may be release tags or immutable commit IDs.\n'
 }
@@ -22,18 +23,21 @@ if [ "${1:-}" = '--help' ] || [ "${1:-}" = '-h' ]; then
   exit 0
 fi
 
-[ "$#" -eq 3 ] || {
+[ "$#" -eq 4 ] || {
   usage >&2
   exit 2
 }
 
 gateway_ref=$1
-agent_gateway_ref=$2
-ui_ref=$3
+memory_engine_ref=$2
+agent_gateway_ref=$3
+ui_ref=$4
 
-case "$gateway_ref:$agent_gateway_ref:$ui_ref" in
-  -*:*:*|*:-*:*|*:*:-*|:*|*::*|*:*:) fail 'component refs must be non-empty and must not begin with -' ;;
-esac
+for ref do
+  case "$ref" in
+    ''|-*) fail 'component refs must be non-empty and must not begin with -' ;;
+  esac
+done
 
 command -v git >/dev/null 2>&1 || fail 'git is required'
 command -v podman-compose >/dev/null 2>&1 || fail 'podman-compose is required'
@@ -48,6 +52,7 @@ trap cleanup EXIT INT TERM
 mkdir -p \
   "$context_root/thought-khoral-platform" \
   "$context_root/thought-khoral-room-gateway" \
+  "$context_root/thought-khoral-memory-engine" \
   "$context_root/thought-khoral-agent-gateway" \
   "$context_root/thought-khoral-workspace-ui"
 
@@ -84,10 +89,19 @@ tar -C "$platform_dir" \
 
 clone_at_ref "$gateway_repo" \
   "$context_root/thought-khoral-room-gateway" "$gateway_ref"
+clone_at_ref "$memory_engine_repo" \
+  "$context_root/thought-khoral-memory-engine" "$memory_engine_ref"
 clone_at_ref "$agent_gateway_repo" \
   "$context_root/thought-khoral-agent-gateway" "$agent_gateway_ref"
 clone_at_ref "$ui_repo" \
   "$context_root/thought-khoral-workspace-ui" "$ui_ref"
+
+for rust_project in thought-khoral-room-gateway thought-khoral-memory-engine thought-khoral-agent-gateway; do
+  [ -f "$context_root/$rust_project/Cargo.toml" ] || \
+    fail "missing $rust_project/Cargo.toml in pinned source"
+done
+[ -f "$context_root/thought-khoral-workspace-ui/package.json" ] || \
+  fail 'missing thought-khoral-workspace-ui/package.json in pinned source'
 
 export THOUGHT_KHORAL_SOURCE_ROOT=$context_root
 podman-compose \

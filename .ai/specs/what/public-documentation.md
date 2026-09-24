@@ -18,4 +18,7 @@ deployment.
   development-only credential boundary.
 - Documentation names deferred production capabilities and does not present
   local Compose manifests as a production deployment.
+- Documentation explains the local reference-agent egress boundary, the
+  Compose sidecar fail-stop/recreate procedure, and the distinct Kubernetes
+  init-container/NetworkPolicy model without promising production isolation.
 - Changes follow the organization issue-first contribution workflow.

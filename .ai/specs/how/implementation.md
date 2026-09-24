@@ -8,17 +8,18 @@ The accepted local [ThoughtKhoral identity decision](../decisions/002-thoughtkho
 
 ## Runtime identity
 
-Compose uses project name `thought-khoral`, services and images named
-`thought-khoral-postgres`, `thought-khoral-keycloak`,
-`thought-khoral-room-gateway`, and `thought-khoral-workspace-ui`. The logical
+Compose uses project name `thought-khoral` and `thought-khoral-` service and
+image names for PostgreSQL, Keycloak, the room gateway, memory engine,
+agent-egress owner, reference agent, agent gateway, and workspace UI. The logical
 volume `thought-khoral-postgres-data` is declared external and resolves to the
 existing physical volume `n2n_postgres-data`; this exact legacy name is a
 persisted-data compatibility exception, not an active product identity. By
-default, build contexts consume the sibling `thought-khoral-room-gateway` and
-`thought-khoral-workspace-ui` projects and their renamed binary and package
-artifacts. `scripts/build-remote.sh` stages pinned revisions from the public
-GitHub gateway and UI repositories into an equivalent temporary source root;
-`THOUGHT_KHORAL_SOURCE_ROOT` selects that root without changing the
+default, build contexts consume the sibling room-gateway, memory-engine,
+agent-gateway, and workspace-UI projects. `scripts/build-remote.sh` accepts
+one immutable tag or commit for each of those four source repositories,
+checks out each in the equivalent temporary sibling layout, and validates
+that every required source path exists before starting Compose.
+`THOUGHT_KHORAL_SOURCE_ROOT` selects that staged root without changing the
 Containerfile paths.
 
 The gateway receives `THOUGHT_KHORAL_ALLOWED_ORIGINS`,
@@ -53,6 +54,12 @@ The ThoughtKhoral realm allocates distinct fixture user UUIDs because Keycloak
 stores user primary keys globally across realms. Reusing the legacy realm's
 fixture UUIDs would collide during import; allocating new rows leaves every
 legacy realm row and previously persisted room event unchanged.
+
+## Local A2A isolation and fail-stop
+
+Root [decision 007](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/decisions/007-a2a-agent-gateway-foundation.md) and the [local egress fail-stop design](../../../docs/superpowers/specs/2026-09-23-agent-egress-fail-stop-design.md) govern the deterministic reference deployment. Compose builds the separate agent gateway and reference-agent binaries, with distinct local bearer credentials, no database credentials or host-published agent ports, non-root UIDs 10001 and 10002, read-only filesystems, and dropped capabilities. The trusted `thought-khoral-agent-egress` sidecar alone has `NET_ADMIN`. It installs default-deny IPv4/IPv6 OUTPUT policy before agent startup, permits reference-agent loopback only, and permits gateway access only to the room gateway, Keycloak, and configured DNS resolver. In `--hold` mode it refreshes room/identity peer IPs without retaining a stale allowance after resolution or policy-update failure.
+
+Both agents share the egress container's network and PID namespaces. Exiting the egress PID 1 stops both processes, including after an unrecoverable firewall-write failure. Recovery recreates the owner and dependents together; restarting one agent alone is not an isolation recovery procedure. Kubernetes uses a one-shot egress init container and CNI NetworkPolicy rather than this Compose PID fail-stop model. Local smoke checks cover the two skills, durable progress and cited terminal results, authorized-context filtering, and egress restrictions; a separate controlled-exit check covers sidecar fail-stop and recovery. This does not establish production workload identity, mutual TLS, remote admission, or a production egress guarantee.
 
 ## Verification
 

@@ -5,15 +5,16 @@ it is not a production deployment distribution.
 
 This independent project builds the
 [room gateway](https://github.com/thoughtkhoral/thought-khoral-room-gateway),
+[memory engine](https://github.com/thoughtkhoral/thought-khoral-memory-engine),
 [agent gateway](https://github.com/thoughtkhoral/thought-khoral-agent-gateway),
 and [workspace UI](https://github.com/thoughtkhoral/thought-khoral-workspace-ui),
 then composes them with PostgreSQL/pgvector and Keycloak. The default source
-build uses checked-out sibling repositories; `scripts/build-remote.sh` also
-builds from pinned GitHub revisions. The stack runs through rootless Podman
-without host networking.
+build uses checked-out sibling repositories. The stack runs through rootless
+Podman without host networking.
 
-The local source-build path expects the platform, room gateway, agent gateway,
-and UI repositories to be checked out as sibling directories. See the [local
+The local source-build path expects the platform, room gateway, memory engine,
+agent gateway, and UI repositories to be checked out as sibling directories.
+See the [local
 specification index](.ai/specs/README.md), the [repository
 map](https://github.com/thoughtkhoral/thought-khoral/blob/main/docs/repository-map.md),
 and the [organization contribution guide](https://github.com/thoughtkhoral/.github/blob/main/CONTRIBUTING.md).
@@ -41,10 +42,10 @@ does not abandon persisted PostgreSQL and Keycloak state.
 - A running rootless Podman machine
 - `podman-compose`
 - `curl`
-- For local builds, the room gateway, agent gateway, and UI repositories checked
-  out beside this platform repository
-- For remote builds, immutable room-gateway, agent-gateway, and UI commit or
-  release-tag refs
+- For full local builds, the room gateway, memory engine, agent gateway, and
+  UI repositories checked out beside this platform repository
+- For pinned remote builds, immutable commit or release-tag refs for all four
+  component repositories and network access to their GitHub remotes
 
 ## Start and verify
 
@@ -54,20 +55,24 @@ bash scripts/smoke.sh
 bash scripts/validate-kube.sh
 ```
 
-After changing a locally checked-out room gateway, agent gateway, or UI, recreate the service
+After changing any locally checked-out component, recreate the service
 containers so they use the newly built images:
 
 ```sh
 podman-compose up --build -d --force-recreate
 ```
 
-To build from GitHub sources instead of local sibling directories, provide one
-ref for each component:
+To build from pinned GitHub revisions rather than local sibling directories,
+provide one ref for each source-built component:
 
 ```sh
-sh scripts/build-remote.sh <gateway-ref> <agent-gateway-ref> <ui-ref>
+sh scripts/build-remote.sh <gateway-ref> <memory-engine-ref> <agent-gateway-ref> <ui-ref>
 bash scripts/smoke.sh
 ```
+
+The helper validates all four staged source manifests before invoking Compose.
+Its offline staging test is `sh scripts/test-build-remote.sh`; a live remote
+build still requires those revisions to be published and reachable.
 
 Open <http://localhost:8082>. Sign in through the ThoughtKhoral development
 realm using one of these local-only accounts:
@@ -123,20 +128,29 @@ cluster parity.
 The two application services run non-root with read-only filesystems, all
 capabilities dropped, no host ports, and no database credentials. The reference
 agent uses UID 10002 and binds only `127.0.0.1:9090`; the gateway uses UID 10001.
-They share a namespace whose trusted `agent-egress` setup container installs
-IPv4 and IPv6 default-deny OUTPUT filters before either application starts.
+They share the trusted `agent-egress` container's network and PID namespaces.
+That container installs IPv4 and IPv6 default-deny OUTPUT filters before
+either application starts and remains running to refresh allowed peer IPs.
 The reference agent can use loopback only. The gateway additionally reaches
 only the resolved room and Keycloak services on TCP 8080 and the configured
 DNS resolver on UDP/TCP 53. Original-destination matching supports Kubernetes
-Service DNAT. Recreate the namespace after service IP changes.
+Service DNAT. Compose refreshes the peer allowlist when service IPs change;
+failed resolution revokes stale peer access.
 
 Compose uses an internal network shared only with room gateway and Keycloak.
 Kubernetes uses a NET_ADMIN init container plus `agent-egress-policy.yaml`;
 apply all files in `kube/` with a NetworkPolicy-capable CNI. Adapt the DNS
 selector to the cluster's DNS labels when needed. Podman does not enforce
-NetworkPolicy, so its kernel init filter remains mandatory. Setup failure
-prevents application startup. Only the credential-free setup container has
-NET_ADMIN; neither agent can change the filter. No routable A2A Service exists.
+NetworkPolicy, so its kernel filter remains mandatory. Setup failure prevents
+application startup. Only the credential-free egress container has NET_ADMIN;
+neither agent can change the filter. If the egress PID 1 exits, both agent
+processes stop with their shared PID namespace rather than continuing under a
+stale allowlist. Recover by recreating the egress owner and both dependent
+containers together, then rerun `bash scripts/smoke-agent-egress.sh` and
+`node scripts/smoke-agent-gateway.mjs`. The local all-service recovery command
+is `podman-compose -f compose.yaml up -d --no-build --force-recreate`.
+Kubernetes uses a one-shot egress init container plus CNI NetworkPolicy, not
+this Compose PID fail-stop mechanism. No routable A2A Service exists.
 
 The broker owns the five-minute lease. The dispatcher publishes at most three
 distinct progress updates and one terminal update per invocation. Polling is
