@@ -55,3 +55,11 @@ After explicit user authorization, the reviewed platform source at
 The v1.1 contract remains unreleased. The owning How records the candidate pin
 checks and provider-free composed smoke. Publication, deployment activation,
 provider use, and push remain separate gates.
+
+## Current POC publication checkpoint — 2026-10-07
+
+The reviewed opt-in Codex platform candidate is pushed to GitHub `main` at
+`251f10f8ad975b6035640adc4a03bbdd34ef4e36`. Candidate pin/safety tests and the
+provider-free composed smoke passed. Packaged deployment and separately
+authorized live-provider verification remain open; this experimental POC is not
+claimed production-ready.

@@ -216,3 +216,11 @@ the rendered defaults matrix and recovery checks; its temporary PostgreSQL
 container and owned fixture processes were cleaned. This does not establish
 packaged deployment, real browser/identity, or live-provider acceptance, and
 does not authorize publication, activation, provider use, or push.
+
+### Pushed POC checkpoint — 2026-10-07
+
+The reviewed opt-in platform candidate is pushed to GitHub `main` in
+`251f10f8ad975b6035640adc4a03bbdd34ef4e36`. Candidate pin/safety tests and the
+provider-free composed smoke passed. Packaged deployment and separately
+authorized live-provider verification remain open; production readiness is not
+claimed.
