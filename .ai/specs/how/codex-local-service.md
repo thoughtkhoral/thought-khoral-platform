@@ -169,3 +169,35 @@ unreleased. This exception is only for this amendment's local pre-publication
 development and synthetic testing. Published v1.0 provenance/bytes remain intact.
 No release publication, shipped interoperability, merge, push, provider use or
 service activation is authorized. Whole milestone/Task9 acceptance remains open.
+
+
+## Defaults candidate verification evidence — 2026-10-07
+
+Task 4 implements the [approved amendment plan](default-settings-discovery-implementation-plan.md)
+in an isolated platform verification branch. Exact sources and artifact anchors
+are recorded in `scripts/fixtures/codex-conversation/defaults-candidate-pins.json`.
+The candidate retains the published v1 profile and immutable v1.0 vendor bytes;
+its additive defaults route is local and unreleased. Mediator and worker remain
+at their earlier reviewed v1-compatible revisions.
+
+Actual synthetic acceptance covers 12 rendered RoomPage HTTP lifecycle cases
+(four independent capability combinations × initial/restored/New), read-only
+validated defaults queries, three display/send mutations and immutable replay
+while defaults/catalog access is unavailable. Accepted UI settings, the frozen
+broker packet and task-correlated native requests agree. The original 11 native
+turns and six crash/commit boundaries remain separate from 13 candidate native
+turns. A fresh New baseline contains prior public room replies in its new thread;
+continuation keeps the existing strict native-reply substitution assertions.
+
+The display/send handshake is test-only. Safe stale/removed rejections retain
+the prompt and explicit Refresh settings; an attempted repeated Send performs
+no additional conversation HTTP submission or ordinary chat send. The shared
+composer button need not be visually disabled. No automatic alternate pair is
+shown or sent. Synthetic evidence does not establish browser, packaged-stack,
+real Keycloak or live-provider acceptance.
+
+Local synthetic verification is recorded for independent specification and code
+review of the exact platform commit and the scoped UI harness range
+`a6aea070199e1eb2e0bd059f7cf0899131a9f092..7ba5e29a1d5ce9b23ae77b2e31528cd91368b0ea`.
+Overall review and F1 closure remain pending; publication, packaged deployment,
+live-provider use and activation retain their separate gates.

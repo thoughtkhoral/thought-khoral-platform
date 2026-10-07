@@ -38,3 +38,9 @@ Implementation and synthetic verification follow the amendment plan; publication
 provider use, activation, merge and push retain their separate gates.
 
 [Defaults discovery implementation plan](how/default-settings-discovery-implementation-plan.md) executes the approved local amendment.
+
+
+The platform-owned defaults candidate fixture records local synthetic UI/HTTP
+acceptance under the [approved local How](how/codex-local-service.md#defaults-candidate-verification-evidence--2026-10-07).
+Independent review and F1 closure remain pending. This evidence does not close
+contract publication, packaged-stack or live-provider gates.

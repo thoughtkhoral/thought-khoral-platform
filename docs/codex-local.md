@@ -140,3 +140,27 @@ for the conversation milestone.
 - Existing remote-build, bootstrap, deterministic egress and Kubernetes checks
   remain required. No fake protocol test establishes live model access, billing,
   provider availability or live conversation behavior.
+
+## Local defaults-discovery candidate
+
+Under the [approved local defaults amendment](../.ai/specs/how/codex-local-service.md#approved-defaults-discovery-amendment--2026-10-07),
+settings-capable clients read the authenticated, read-only
+`GET /api/agent-conversations/v1/rooms/{roomId}/agents/{agentId}/defaults` route
+before their first turn or explicit New session. It returns the broker's
+validated next-turn pair with `Cache-Control: no-store`, without allocating a
+conversation, task, event, lease or native thread. A restored shared conversation
+retains its accepted pair. A later deployment-default-only change preserves a
+still-valid explicitly displayed pair.
+
+Model and reasoning-effort controls are independent: an unsupported control is
+read-only while the supported control remains usable. Neither capability keeps
+the settings-free invocation path and makes no catalog/default requests. Stale
+or removed pairs retain the prompt, block invocation and require explicit Refresh
+settings; unavailable defaults never fall back to catalog order.
+
+The [candidate verification procedure](codex-verification.md#unreleased-defaults-discovery-candidate)
+uses exact local unreleased contract/broker/UI pins and unchanged reviewed
+mediator/worker sources. It adds `--fake --defaults-candidate`; existing fake and
+live pins remain unchanged. This mode provides synthetic HTTP/jsdom/fake-native
+evidence only. Contract publication, packaged-stack validation, live-provider
+use and activation remain separately gated.

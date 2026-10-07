@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // Provider-free composed conversation verification. See docs/codex-verification.md.
 import { execFileSync, spawn } from 'node:child_process';
-import { copyFileSync, mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync, statSync, realpathSync, lstatSync, openSync, closeSync, fstatSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync, statSync, realpathSync, lstatSync, openSync, closeSync, fstatSync, readdirSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve, basename, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { createInterface } from 'node:readline/promises';
+import { createServer } from 'node:net';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const fixture = join(root, 'scripts/fixtures/codex-conversation');
@@ -21,6 +22,7 @@ const help = `Usage: node scripts/smoke-codex-conversation.mjs --fake
 
 --fake  Run isolated PostgreSQL and the real broker, mediator, and worker libraries
         with signed synthetic tokens and a fake native app-server executable.
+--defaults-candidate  With --fake only: exact unreleased local defaults/UI sources.
 --live  Require explicit opt-in and an operator packet; see docs/codex-verification.md.
 --help  Show this usage.
 `;
@@ -28,16 +30,78 @@ const help = `Usage: node scripts/smoke-codex-conversation.mjs --fake
 function command(program, args, options = {}) {
   return execFileSync(program, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...options }).trim();
 }
-function sourcePins() {
+// This digest is a source-controlled anchor, never an environment override.
+const candidatePinsSha256 = '8b5940e59126f63625c927f570ecd330ecf6e912843fe054ad763afd47799371';
+const candidateLockSha256 = '7914d32eae2487879a68405b5095a6b9aa91355f87529c43f4055844821902a9';
+const legacyLockSha256 = '6e579a2624c79dc8472951a95c74a8b460b386e396845c75816014b1b6c86e40';
+const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
+export function verifyCandidatePins(path = join(fixture, 'defaults-candidate-pins.json')) {
+  const bytes = readFileSync(path);
+  if (sha256(bytes) !== candidatePinsSha256) throw new Error('candidate metadata differs from reviewed source anchor');
+  return JSON.parse(bytes);
+}
+export function verifyVendor(directory, { legacy = false } = {}) {
+  const lockBytes = readFileSync(join(directory, 'lock.json'));
+  if (sha256(lockBytes) !== (legacy ? legacyLockSha256 : candidateLockSha256)) throw new Error('vendor lock anchor mismatch');
+  const lock = JSON.parse(lockBytes);
+  const expectedFiles = new Set(['lock.json', ...Object.keys(lock.files)]);
+  const expectedDirectories = new Set();
+  for (const file of expectedFiles) {
+    let parent = dirname(file);
+    while (parent !== '.') { expectedDirectories.add(parent); parent = dirname(parent); }
+  }
+  const actualFiles = new Set();
+  function walk(relative = '') {
+    if (lstatSync(join(directory, relative)).isSymbolicLink()) throw new Error('vendor symlink rejected');
+    for (const entry of readdirSync(join(directory, relative), { withFileTypes: true })) {
+      const path = join(relative, entry.name);
+      if (entry.isDirectory() && expectedDirectories.has(path)) walk(path);
+      else if (entry.isFile() && expectedFiles.has(path)) actualFiles.add(path);
+      else throw new Error(`unexpected vendor payload: ${path}`);
+    }
+  }
+  walk();
+  if (actualFiles.size !== expectedFiles.size) throw new Error('missing vendor payload file');
+  for (const [path, digest] of Object.entries(lock.files)) {
+    if (sha256(readFileSync(join(directory, path))) !== digest) throw new Error(`vendor payload digest mismatch: ${path}`);
+  }
+  return lock;
+}
+export function verifyCandidateArtifact(contracts, artifact = verifyCandidatePins().artifactPath) {
+  const metadata = verifyCandidatePins();
+  const verified = JSON.parse(command('python3', [join(contracts, 'scripts/build-conversation-candidate.py'),
+    '--verify', artifact, '--lock-sha256', metadata.lockSha256]));
+  if (verified.commit !== metadata.contractCommit || verified.archiveSha256 !== metadata.archiveSha256)
+    throw new Error('candidate artifact identity mismatch');
+  return verified;
+}
+export function sourcePins({ defaultsCandidate = false } = {}) {
   const paths = {};
-  for (const [key, [variable, fallback, expected]] of Object.entries(pins)) {
+  const metadata = defaultsCandidate ? verifyCandidatePins() : null;
+  const sources = metadata ? Object.fromEntries(Object.entries(metadata.sources).map(([key, value]) =>
+    [key, [`TASK9_${key.toUpperCase()}_REPO`, value.path, value.head]])) : pins;
+  for (const [key, [variable, fallback, expected]] of Object.entries(sources)) {
     const path = resolve(process.env[variable] || fallback);
     const actual = command('git', ['-C', path, 'rev-parse', 'HEAD']);
     if (actual !== expected) throw new Error(`${key} revision mismatch: expected ${expected}, got ${actual}`);
-    if (command('git', ['-C', path, 'status', '--porcelain'])) throw new Error(`${key} source worktree is dirty`);
+    if (command('git', ['-C', path, 'status', '--porcelain', '--untracked-files=all'])) throw new Error(`${key} source worktree is dirty`);
     paths[key] = path;
   }
+  if (defaultsCandidate) {
+    verifyCandidateArtifact(paths.contracts);
+    for (const key of ['broker', 'ui']) verifyVendor(join(paths[key], 'contracts/agent-conversation-v1.1-candidate'));
+    for (const key of ['broker', 'ui', 'mediator', 'worker']) verifyVendor(join(paths[key], 'contracts/agent-conversation-v1'), { legacy: true });
+  }
   return paths;
+}
+async function availablePorts() {
+  const listeners = [];
+  try {
+    for (const port of [8080, 9091, 9092]) {
+      const listener = createServer(); listeners.push(listener);
+      await new Promise((resolvePort, reject) => { listener.once('error', reject); listener.listen(port, '127.0.0.1', resolvePort); });
+    }
+  } finally { await Promise.all(listeners.map(listener => new Promise(resolvePort => listener.close(resolvePort)))); }
 }
 function generatePackage(state, paths) {
   const packageDir = join(state, 'package');
@@ -290,9 +354,10 @@ async function liveMode(args) {
   }
   process.stdout.write(`Task9 live API checks recorded in ${value.evidenceFile}; inspect native receipts, tool policy, and network audit before accepting live coverage.\n`);
 }
-async function fakeMode() {
+async function fakeMode({ defaultsCandidate = false } = {}) {
   process.stdout.write('Task9 synthetic native protocol fixture: CLI 0.160.0 fields are stub values, not binary/package verification.\n');
-  const paths = sourcePins();
+  const paths = sourcePins({ defaultsCandidate });
+  await availablePorts();
   const state = mkdtempSync(join(tmpdir(), 'Task9-codex-conversation-'));
   const container = `Task9-postgres-${process.pid}`;
   let started = false;
@@ -300,6 +365,7 @@ async function fakeMode() {
   let childEnded;
   let cleaning;
   let interrupted = false;
+  let failed = false;
   function ownedGroups() {
     const processes = command('ps', ['-axo', 'pid=,ppid=,pgid=,command=']).split('\n')
       .map(row => row.trim().match(/^(\d+)\s+(\d+)\s+(\d+)\s+(.*)$/)).filter(Boolean)
@@ -352,11 +418,12 @@ async function fakeMode() {
       } catch (error) { errors.push(error); }
     }
     // Retain diagnostic state if cleanup failed; never erase live owners' state.
-    if (!errors.length && process.env.TASK9_KEEP_FIXTURE !== '1') rmSync(state, { recursive: true, force: true });
+    if (!errors.length && !(defaultsCandidate && failed) && process.env.TASK9_KEEP_FIXTURE !== '1') rmSync(state, { recursive: true, force: true });
     if (errors.length) throw new AggregateError(errors, `Task9 cleanup failed: ${errors.map(e => e.message).join('; ')}`);
   })();
   const interrupt = code => {
     interrupted = true;
+    if (defaultsCandidate) { failed = true; process.stderr.write(`Task9 interrupted synthetic evidence retained at ${state}\n`); }
     cleanup().then(() => { process.exitCode = code; }, error => {
       process.stderr.write(`${error.message}\n`); process.exitCode = 1;
     });
@@ -367,6 +434,11 @@ async function fakeMode() {
   process.on('SIGTERM', onTerm);
   try {
     const packageDir = generatePackage(state, paths);
+    if (defaultsCandidate) {
+      writeFileSync(join(state, 'defaults-source-pins.json'), JSON.stringify(verifyCandidatePins(), null, 2) + '\n', { flag: 'wx' });
+      process.stdout.write(`Task9 defaults candidate state: ${state}\n`);
+      process.stdout.write(`Task9 defaults candidate exact sources: ${JSON.stringify(verifyCandidatePins())}\n`);
+    }
     command('podman', ['run', '--detach', '--rm', '--name', container,
       '--env', 'POSTGRES_USER=task9', '--env', 'POSTGRES_PASSWORD=Task9-synthetic-password',
       '--env', 'POSTGRES_DB=task9', '--publish', '127.0.0.1::5432', 'docker.io/library/postgres:16']);
@@ -381,6 +453,8 @@ async function fakeMode() {
       TASK9_BROKER_REPO: paths.broker,
       TASK9_MEDIATOR_REPO: paths.mediator,
       TASK9_WORKER_REPO: paths.worker,
+      TASK9_DEFAULTS_CANDIDATE: defaultsCandidate ? '1' : '0',
+      TASK9_UI_REPO: defaultsCandidate ? paths.ui : '',
       TASK9_FAKE_APP_SERVER: join(fixture, 'fake_app_server.py'),
       CARGO_TARGET_DIR: process.env.TASK9_CARGO_TARGET_DIR || join(tmpdir(), 'Task9-codex-conversation-target'),
     };
@@ -388,18 +462,24 @@ async function fakeMode() {
     childEnded = new Promise((resolveCode, reject) => { child.once('exit', resolveCode); child.once('error', reject); });
     const code = await childEnded;
     if (!interrupted && code !== 0) throw new Error(`composed fixture exited ${code}`);
+  } catch (error) {
+    failed = true;
+    if (defaultsCandidate) process.stderr.write(`Task9 failed synthetic evidence retained at ${state}\n`);
+    throw error;
   } finally {
     try { await cleanup(); }
     finally { process.removeListener('SIGINT', onInt); process.removeListener('SIGTERM', onTerm); }
   }
 }
 
-if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && existsSync(process.argv[1]) && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   try {
     if (args.length === 1 && args[0] === '--help') process.stdout.write(help);
+    else if (args.includes('--live') && args.includes('--defaults-candidate')) throw new Error('defaults candidate is unreleased and forbidden in live mode');
     else if (args.includes('--live')) await liveMode(args);
     else if (args.length === 1 && args[0] === '--fake') await fakeMode();
+    else if (args.length === 2 && args.includes('--fake') && args.includes('--defaults-candidate')) await fakeMode({ defaultsCandidate: true });
     else throw new Error(`expected --fake or --live\n${help}`);
   } catch (error) {
     process.stderr.write(`Task9: ${error.message}\n`);

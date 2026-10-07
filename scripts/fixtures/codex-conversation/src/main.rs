@@ -249,7 +249,7 @@ async fn get(client: &Client, path: &str, token: &str) -> Result<(reqwest::Statu
 fn native_records(path: &Path) -> Result<Vec<Value>> {
     Ok(std::fs::read_to_string(path)?.lines().map(serde_json::from_str).collect::<std::result::Result<_,_>>()?)
 }
-fn assert_native_input(record: &Value, packet: &Value) {
+fn assert_native_packet(record: &Value, packet: &Value) {
     let input = record["request"]["params"]["input"].as_array().expect("native input array");
     assert_eq!(input.len(), 1, "one native input item");
     assert_eq!(input[0]["type"], "text");
@@ -258,6 +258,10 @@ fn assert_native_input(record: &Value, packet: &Value) {
     assert_eq!(decoded, json!({"triggerEventId":packet["triggerEventId"], "context":packet["context"]}), "native source/trigger/context identity");
     let entries = decoded["context"]["entries"].as_array().expect("native entries");
     assert_eq!(entries.iter().filter(|e| e["eventId"] == packet["triggerEventId"]).count(), 1, "native trigger occurs once");
+}
+fn assert_native_input(record: &Value, packet: &Value) {
+    assert_native_packet(record, packet);
+    let entries = packet["context"]["entries"].as_array().expect("native entries");
     assert!(entries.iter().all(|e| e["authorRole"] == "human"), "accepted reply cannot be reinjected as assistant history");
 }
 
@@ -553,6 +557,237 @@ async fn unavailable_runtime(client: &Client, pool: &PgPool, issuer: &Issuer, wo
     assert_eq!(native_turn_count()?, before);
     Ok(())
 }
+// Candidate-only synthetic UI/HTTP acceptance; no provider or browser claim.
+fn exact_keys(value: &Value, expected: &[&str]) {
+    let mut actual = value.as_object().expect("closed evidence object").keys().map(String::as_str).collect::<Vec<_>>();
+    let mut expected = expected.to_vec(); actual.sort(); expected.sort(); assert_eq!(actual, expected);
+}
+fn selected(model: &str, effort: &str) -> Value {
+    json!({"model":model,"reasoningEffort":effort,"catalogRevision":"catalog-1"})
+}
+fn assert_ui_pair(evidence: &Value, phase: &str, room: Uuid, capabilities: (bool, bool), expected: &Value, task: &str) {
+    exact_keys(evidence, &["phase", "capabilities", "displayedSettings", "submittedSettings", "acceptedTurn", "defaultsReads", "catalogReads"]);
+    assert_eq!(evidence["phase"], phase);
+    assert_eq!(evidence["capabilities"], json!({"modelSelection":capabilities.0,"reasoningEffort":capabilities.1}));
+    let accepted = &evidence["acceptedTurn"];
+    assert_eq!(accepted["taskId"], task); assert_eq!(accepted["roomId"], room.to_string());
+    assert_eq!(accepted["selectedSettings"], *expected);
+    if capabilities.0 || capabilities.1 {
+        assert_eq!(evidence["displayedSettings"], *expected);
+        assert_eq!(evidence["displayedSettings"], evidence["submittedSettings"]);
+        assert_eq!(evidence["submittedSettings"], accepted["selectedSettings"]);
+        assert_eq!(evidence["defaultsReads"], if phase == "restored" { 0 } else { 1 });
+        // New first restores the current catalog and then explicitly discovers again.
+        assert_eq!(evidence["catalogReads"], if phase == "new" { 2 } else { 1 });
+    } else {
+        assert!(evidence["displayedSettings"].is_null()); assert!(evidence["submittedSettings"].is_null());
+        assert_eq!(evidence["defaultsReads"], 0); assert_eq!(evidence["catalogReads"], 0);
+    }
+}
+fn assert_native_pair(record: &Value, expected: &Value, thread: &Value) {
+    assert_eq!(record["request"]["params"]["threadId"], *thread);
+    let model = match expected["model"].as_str().unwrap() { "model-a" => "gpt-6.1-sol", "model-b" => "gpt-6-sol", _ => panic!("unexpected synthetic model") };
+    let effort = match expected["reasoningEffort"].as_str().unwrap() { "effort-medium" => "medium", "effort-high" => "high", _ => panic!("unexpected synthetic effort") };
+    assert_eq!(record["request"]["params"]["model"], model); assert_eq!(record["request"]["params"]["effort"], effort);
+}
+fn write_evidence(path: &Path, value: &Value) -> Result<()> {
+    use std::io::Write;
+    let mut file = std::fs::OpenOptions::new().write(true).create_new(true).open(path)?;
+    writeln!(file, "{}", serde_json::to_string_pretty(value)?)?;
+    Ok(())
+}
+async fn matrix_policy(gateway: &GatewayState, client: &Client, mode: &str) -> Result<()> {
+    let mut value = policy(); value.turn_deadline_seconds = 60;
+    if mode == "b" { value.model = "model-b".into(); value.reasoning_effort = "effort-high".into(); }
+    if mode == "stale" { value.catalog_revision = "catalog-2".into(); }
+    if mode == "removed" { value.models.retain(|model| model.id != "model-b"); }
+    let catalog = if mode == "unavailable" { None } else { Some(Arc::new(LoopbackCatalog(client.clone())) as Arc<dyn CatalogQuery>) };
+    gateway.configure_conversations(value, catalog).await?;
+    Ok(())
+}
+async fn room_counts(pool: &PgPool, room: Uuid) -> Result<Value> {
+    let mut counts = serde_json::Map::new();
+    // Fixed fixture-only table names, values remain parameter-bound.
+    for table in ["agent_conversations", "conversation_tasks", "room_events", "room_requests", "conversation_updates", "conversation_disclosures"] {
+        let count: i64 = sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table} WHERE room_id=$1")).bind(room).fetch_one(pool).await?;
+        counts.insert(table.into(), json!(count));
+    }
+    Ok(Value::Object(counts))
+}
+async fn defaults_read(client: &Client, pool: &PgPool, room: Uuid, token: &str) -> Result<Value> {
+    let before = room_counts(pool, room).await?;
+    assert!(before.as_object().unwrap().values().all(|value| *value == 0));
+    let native_before = native_turn_count()?;
+    let records_before = native_records(&state().join("native-requests.jsonl"))?;
+    let threads_before = records_before.iter().filter(|r| r["request"]["method"] == "thread/start").count();
+    let path = format!("http://127.0.0.1:8080/api/agent-conversations/v1/rooms/{room}/agents/{CODEX_AGENT_ID}/defaults");
+    for auth in [false, true] {
+        let mut request = client.get(&path);
+        if auth { request = request.bearer_auth(token); }
+        let response = request.send().await?;
+        assert_eq!(response.status(), if auth { reqwest::StatusCode::OK } else { reqwest::StatusCode::UNAUTHORIZED });
+        assert_eq!(response.headers()["cache-control"], "no-store");
+        let view: Value = response.json().await?;
+        if auth {
+            exact_keys(&view, &["profileVersion", "roomId", "agentId", "selectedSettings"]);
+            assert_eq!(view["profileVersion"], PROFILE_VERSION); assert_eq!(view["roomId"], room.to_string());
+            assert_eq!(view["agentId"], CODEX_AGENT_ID.to_string()); assert_eq!(view["selectedSettings"], selected("model-b", "effort-high"));
+        } else {
+            exact_keys(&view, &["profileVersion", "requestId", "code", "message"]);
+            assert_eq!(view["code"], "authentication_required");
+        }
+    }
+    assert_eq!(room_counts(pool, room).await?, before); assert_eq!(native_turn_count()?, native_before);
+    assert_eq!(native_records(&state().join("native-requests.jsonl"))?.iter().filter(|r| r["request"]["method"] == "thread/start").count(), threads_before);
+    Ok(json!({"roomId":room,"countsBefore":before,"countsAfter":before,"nativeTurnDelta":0,"nativeThreadDelta":0,"authenticated":true,"unauthenticatedRejected":true,"noStore":true,"closedResponse":true}))
+}
+async fn ui_child(client: &Client, gateway: &GatewayState, room: Uuid, token: &str, phase: &str, capabilities: (bool, bool), mutation: Option<&str>) -> Result<Value> {
+    let label = format!("{}-{}-{phase}", room, if capabilities.0 { "model" } else { "no-model" });
+    let evidence = state().join(format!("ui-{label}.json"));
+    let display = state().join(format!("display-{label}.json"));
+    let release = state().join(format!("release-{label}.json"));
+    assert!(!evidence.exists() && !display.exists() && !release.exists(), "UI evidence must be fresh");
+    let stdout = std::fs::OpenOptions::new().write(true).create_new(true).open(state().join(format!("ui-{label}.stdout.log")))?;
+    let stderr = std::fs::OpenOptions::new().write(true).create_new(true).open(state().join(format!("ui-{label}.stderr.log")))?;
+    let mut command = Command::new("npm");
+    command.args(["test", "--", "src/features/room/CodexDefaults.composed.test.tsx"])
+        .current_dir(env::var("TASK9_UI_REPO")?).env("RUN_CODEX_DEFAULTS_COMPOSED", "1")
+        .env("CODEX_DEFAULTS_BROKER_ORIGIN", "http://127.0.0.1:8080")
+        .env("CODEX_DEFAULTS_ROOM_ID", room.to_string()).env("CODEX_DEFAULTS_TOKEN", token)
+        .env("CODEX_DEFAULTS_PHASE", phase).env("CODEX_DEFAULTS_EVIDENCE_FILE", &evidence)
+        .env("CODEX_DEFAULTS_MODEL_SELECTION", capabilities.0.to_string())
+        .env("CODEX_DEFAULTS_REASONING_EFFORT", capabilities.1.to_string())
+        .env_remove("CODEX_DEFAULTS_DISPLAY_EVIDENCE_FILE").env_remove("CODEX_DEFAULTS_SEND_RELEASE_FILE").env_remove("CODEX_DEFAULTS_EXPECT_REJECTION")
+        .stdout(stdout).stderr(stderr).kill_on_drop(true);
+    if let Some(mode) = mutation {
+        command.env("CODEX_DEFAULTS_DISPLAY_EVIDENCE_FILE", &display).env("CODEX_DEFAULTS_SEND_RELEASE_FILE", &release);
+        if mode != "default-only" { command.env("CODEX_DEFAULTS_EXPECT_REJECTION", "invalid_task_input"); }
+    }
+    println!("Task9 UI START {label} mutation={mutation:?}");
+    let mut child = command.spawn()?;
+    if let Some(mode) = mutation {
+        wait_for_file(&display).await?;
+        let shown: Value = serde_json::from_slice(&std::fs::read(&display)?)?;
+        exact_keys(&shown, &["phase", "capabilities", "displayedSettings", "prompt"]);
+        assert_eq!(shown["displayedSettings"], selected("model-b", "effort-high"));
+        matrix_policy(gateway, client, if mode == "default-only" { "a" } else { mode }).await?;
+        use std::io::Write;
+        std::fs::OpenOptions::new().write(true).create_new(true).open(&release)?.write_all(b"{\"release\":true}\n")?;
+    }
+    let status = tokio::time::timeout(Duration::from_secs(45), child.wait()).await??;
+    if !status.success() { return Err(format!("Task9 UI FAIL {label}: {status}; see owned UI logs").into()); }
+    let value: Value = serde_json::from_slice(&std::fs::read(&evidence)?)?;
+    println!("Task9 UI HTTP result {label} task={}", value["acceptedTurn"]["taskId"]);
+    Ok(value)
+}
+async fn mediate_ui(client: &Client, pool: &PgPool, room: Uuid, token: &str, phase: &str, capabilities: (bool, bool), evidence: &Value, expected: &Value) -> Result<Value> {
+    let accepted = &evidence["acceptedTurn"];
+    let task = accepted["taskId"].as_str().ok_or("UI evidence has no accepted task")?;
+    let frozen_row = sqlx::query("SELECT frozen_input,accepted_turn FROM conversation_tasks WHERE task_id=$1 AND room_id=$2")
+        .bind(Uuid::parse_str(task)?).bind(room).fetch_one(pool).await?;
+    let frozen: Value = frozen_row.get("frozen_input"); let stored: Value = frozen_row.get("accepted_turn");
+    assert_eq!(*accepted, stored);
+    assert_ui_pair(evidence, phase, room, capabilities, expected, frozen["taskId"].as_str().unwrap());
+    let frozen_settings = json!({"model":frozen["model"],"reasoningEffort":frozen["reasoningEffort"],"catalogRevision":frozen["catalogRevision"]});
+    assert_eq!(frozen["agentId"], CODEX_AGENT_ID.to_string());
+    assert_eq!(frozen_settings, *expected);
+    let before = native_turn_count()?; run_mediator().await?;
+    assert_eq!(native_turn_count()?, before + 1);
+    let (status, view) = get(client, &format!("/api/agent-conversations/v1/rooms/{room}/tasks/{task}"), token).await?;
+    assert_eq!(status, reqwest::StatusCode::OK); assert_eq!(view["state"], "completed", "{view}");
+    assert_eq!(view["selectedSettings"], *expected); assert_eq!(view["effectiveSettings"]["model"], expected["model"]); assert_eq!(view["effectiveSettings"]["reasoningEffort"], expected["reasoningEffort"]);
+    let receipt = worker_receipt(client, task).await?;
+    let thread = &receipt["runtimeBinding"]["threadId"]; assert!(thread.as_str().is_some_and(|s| !s.is_empty()));
+    let records = native_records(&state().join("native-requests.jsonl"))?;
+    let matching = records.iter().filter(|record| {
+        record["request"]["method"] == "turn/start" && record["request"]["params"]["input"][0]["text"].as_str()
+            .and_then(|text| serde_json::from_str::<Value>(text).ok()).is_some_and(|input| input["triggerEventId"] == frozen["triggerEventId"])
+    }).collect::<Vec<_>>();
+    assert_eq!(matching.len(), 1, "one exact task/trigger-correlated native capture");
+    let native = matching[0];
+    if phase == "new" {
+        // A new generation's baseline includes public replies from prior threads;
+        // the profile forbids substituting native bindings in any baseline.
+        assert_native_packet(native, &frozen);
+        assert_eq!(frozen["context"]["kind"], "baseline"); assert_eq!(frozen["context"]["baseRevision"], 0);
+        assert_eq!(frozen["context"]["nativeReplyBindings"], json!([]));
+        let entries = frozen["context"]["entries"].as_array().unwrap();
+        let public = events_after(pool, room, 0).await?.into_iter().filter(|event| event.sequence <= frozen["context"]["revision"].as_i64().unwrap()).collect::<Vec<_>>();
+        assert_eq!(entries.len(), 5); assert_eq!(entries.len(), public.len());
+        assert_eq!(entries.iter().filter(|entry| entry["authorRole"] == "agent").count(), 2);
+        for (entry, event) in entries.iter().zip(public.iter()) {
+            assert_eq!(entry["eventId"], event.event_id.to_string()); assert_eq!(entry["text"], event.payload["text"]);
+            assert_eq!(entry["authorId"], event.actor_id.to_string());
+        }
+    } else { assert_native_input(native, &frozen); }
+    assert_native_pair(native, expected, thread);
+    assert_eq!(receipt["taskId"], task);
+    let result = json!({"phase":phase,"capabilities":evidence["capabilities"],"roomId":room,"taskId":task,"conversationId":accepted["conversationId"],"generation":accepted["generation"],
+        "displayedSettings":evidence["displayedSettings"],"submittedSettings":evidence["submittedSettings"],"acceptedSettings":expected,"frozenSettings":frozen_settings,"effectiveSettings":view["effectiveSettings"],
+        "nativeModel":native["request"]["params"]["model"],"nativeEffort":native["request"]["params"]["effort"],"threadId":thread,"defaultsReads":evidence["defaultsReads"],"catalogReads":evidence["catalogReads"],"gate":"passed"});
+    write_evidence(&state().join(format!("comparison-{task}.json")), &result)?;
+    println!("Task9 defaults comparison PASS: {result}");
+    Ok(result)
+}
+async fn defaults_ui_matrix(client: &Client, pool: &PgPool, issuer: &Issuer, gateway: &GatewayState) -> Result<()> {
+    let start = native_turn_count()?; let mut results = vec![]; let mut reads = vec![];
+    for capabilities in [(true,true),(false,true),(true,false),(false,false)] {
+        matrix_policy(gateway, client, "b").await?;
+        let room = Uuid::new_v4(); let token = issuer.token(Uuid::new_v4().to_string(), Some("human"), Some("Maya"));
+        reads.push(defaults_read(client, pool, room, &token).await?);
+        let mut previous: Option<Value> = None;
+        for phase in ["initial", "restored", "new"] {
+            if phase == "restored" { matrix_policy(gateway, client, "a").await?; }
+            let evidence = ui_child(client, gateway, room, &token, phase, capabilities, None).await?;
+            let pair = if phase == "new" { selected("model-a", "effort-medium") } else { selected("model-b", "effort-high") };
+            let result = mediate_ui(client, pool, room, &token, phase, capabilities, &evidence, &pair).await?;
+            if let Some(prior) = &previous {
+                if phase == "new" { assert_ne!(prior["threadId"], result["threadId"]); assert_ne!(prior["conversationId"], result["conversationId"]); }
+                else { assert_eq!(prior["threadId"], result["threadId"]); assert_eq!(prior["conversationId"], result["conversationId"]); }
+            }
+            previous = Some(result.clone()); results.push(result);
+        }
+    }
+    assert_eq!(results.len(), 12); assert_eq!(native_turn_count()? - start, 12);
+    let mut mutations = vec![];
+    for mode in ["default-only", "stale", "removed"] {
+        matrix_policy(gateway, client, "b").await?;
+        let room = Uuid::new_v4(); let token = issuer.token(Uuid::new_v4().to_string(), Some("human"), Some("Leo"));
+        let before = room_counts(pool, room).await?; let native_before = native_turn_count()?;
+        let evidence = ui_child(client, gateway, room, &token, "initial", (true,true), Some(mode)).await?;
+        if mode == "default-only" {
+            let result = mediate_ui(client, pool, room, &token, "initial", (true,true), &evidence, &selected("model-b", "effort-high")).await?;
+            let after = room_counts(pool, room).await?; assert_eq!(after["conversation_tasks"], 1); assert_eq!(after["agent_conversations"], 1);
+            // Recover the original request from immutable public request storage, not a newly invented request.
+            let task = evidence["acceptedTurn"]["taskId"].as_str().unwrap();
+            let request: Value = sqlx::query_scalar("SELECT request_fingerprint->'intent' FROM room_requests WHERE room_id=$1 AND request_id=(SELECT request_id FROM conversation_tasks WHERE task_id=$2)")
+                .bind(room).bind(Uuid::parse_str(task)?).fetch_one(pool).await?;
+            matrix_policy(gateway, client, "unavailable").await?;
+            let (unavailable, _) = get(client, &format!("/api/agent-conversations/v1/rooms/{room}/agents/{CODEX_AGENT_ID}/defaults"), &token).await?;
+            assert_eq!(unavailable, reqwest::StatusCode::SERVICE_UNAVAILABLE);
+            let native_before_replay = native_turn_count()?;
+            let (status, replay) = post_json(client, "/api/agent-conversations/v1/turns", &token, &request).await?;
+            assert_eq!(status, reqwest::StatusCode::ACCEPTED); assert_eq!(replay, evidence["acceptedTurn"]);
+            run_mediator().await?; assert_eq!(native_turn_count()?, native_before_replay); assert_eq!(room_counts(pool, room).await?, after);
+            mutations.push(json!({"mode":mode,"comparison":result,"replayImmutable":true,"replayNativeTurnDelta":0}));
+        } else {
+            exact_keys(&evidence, &["phase", "capabilities", "displayedSettings", "submittedSettings", "rejection", "promptRetained", "refreshRequired", "sendBlocked", "defaultsReads", "catalogReads"]);
+            assert_eq!(evidence["displayedSettings"], selected("model-b", "effort-high")); assert_eq!(evidence["submittedSettings"], evidence["displayedSettings"]);
+            assert_eq!(evidence["rejection"]["profileError"]["code"], "invalid_task_input");
+            for key in ["promptRetained", "refreshRequired", "sendBlocked"] { assert_eq!(evidence[key], true); }
+            assert_eq!(evidence["defaultsReads"], 1); assert_eq!(evidence["catalogReads"], 1);
+            run_mediator().await?;
+            assert_eq!(room_counts(pool, room).await?, before); assert_eq!(native_turn_count()?, native_before);
+            mutations.push(json!({"mode":mode,"uiEvidence":evidence,"roomId":room,"taskId":null,"countsBefore":before,"countsAfter":before,"nativeTurnDelta":0,"gate":"passed"}));
+        }
+        println!("Task9 defaults mutation PASS: {}", mutations.last().unwrap());
+    }
+    assert_eq!(native_turn_count()? - start, 13);
+    write_evidence(&state().join("defaults-matrix.json"), &json!({"evidenceClass":"local-synthetic-real-http-jsdom-fake-native","gate":"passed","lifecycle":results,"readOnly":reads,"mutations":mutations,"lifecycleCount":12,"additionalNativeTurns":13,"retainedBaselineNativeTurns":11,"retainedBoundaryScenarios":6}))?;
+    println!("Task9 defaults candidate PASS: 12 actual UI lifecycle phases, 4 read-only auth/no-store checks, 3 display/mutate/send cases, immutable unavailable replay; additional native turns=13, baseline=11");
+    Ok(())
+}
+
 async fn migrate(pool: &PgPool, broker: &Path) -> Result<()> {
     let mut paths = std::fs::read_dir(broker.join("migrations"))?
         .map(|e| e.map(|v| v.path())).collect::<std::result::Result<Vec<_>,_>>()?;
@@ -583,7 +818,7 @@ async fn parent() -> Result<()> {
     gateway_state.configure_conversations(policy(), Some(Arc::new(LoopbackCatalog(client.clone())))).await?;
     let token_route = Router::new().route("/realms/thought-khoral/protocol/openid-connect/token", post(token_endpoint)).with_state(issuer.clone());
     let gate = UpdateGate::new(state());
-    let broker_router = app(gateway_state).merge(token_route).layer(middleware::from_fn_with_state(gate.clone(), gate_update));
+    let broker_router = app(gateway_state.clone()).merge(token_route).layer(middleware::from_fn_with_state(gate.clone(), gate_update));
     let broker_task = tokio::spawn(async move { axum::serve(broker_listener, broker_router).await });
     let catalog_router = catalog_service(loopback_worker(), BRIDGE_SECRET.into())?;
     let catalog_task = tokio::spawn(async move { axum::serve(catalog_listener, catalog_router).await });
@@ -783,6 +1018,13 @@ async fn parent() -> Result<()> {
     mediator_boundary(&client, &pool, &issuer, &gate, GatePhase::AfterCommit).await?;
     rejected_completion_recovery(&client, &pool, &issuer, &gate, &mut worker).await?;
     unavailable_runtime(&client, &pool, &issuer, &mut worker).await?;
+    let retained_native = native_turn_count()?;
+    assert_eq!(retained_native, 11, "retained baseline native-turn assertion");
+    if env::var("TASK9_DEFAULTS_CANDIDATE").as_deref() == Ok("1") {
+        stop_child(&mut worker).await?;
+        worker = spawn_worker(&client, "usage").await?;
+        defaults_ui_matrix(&client, &pool, &issuer, &gateway_state).await?;
+    }
     worker.kill().await?;
     worker.wait().await?;
     broker_task.abort();
@@ -790,7 +1032,7 @@ async fn parent() -> Result<()> {
     pool.close().await;
     let all_native = native_records(&state().join("native-requests.jsonl"))?.iter()
         .filter(|r| r["request"]["method"] == "turn/start").count();
-    assert_eq!(all_native, 11);
+    assert_eq!(all_native, if env::var("TASK9_DEFAULTS_CANDIDATE").as_deref() == Ok("1") { 24 } else { 11 });
     println!("Task9 composed fake PASS: concurrent duplicate=one task, baseline/delta IDs, secret and room isolation, reset distinct thread/defaults, retained thread after restart, model/effort switch, latest usage, denied model no fallback, six crash/commit boundaries; rejected-completion recovery; omitted shared settings; three safe failures; native turns={all_native}");
     Ok(())
 }
@@ -832,6 +1074,44 @@ mod tests {
             }
             assert!(std::panic::catch_unwind(|| assert_native_input(&capture(&altered), &packet)).is_err(), "missed native mutation {change}");
         }
+    }
+    #[test]
+    fn defaults_comparison_refuses_pair_task_thread_and_read_mutations() {
+        let room = Uuid::new_v4(); let settings = selected("model-b", "effort-high");
+        let evidence = json!({"phase":"initial","capabilities":{"modelSelection":true,"reasoningEffort":true},"displayedSettings":settings,"submittedSettings":settings,
+            "acceptedTurn":{"roomId":room,"taskId":"task-exact","selectedSettings":settings},"defaultsReads":1,"catalogReads":1});
+        assert_ui_pair(&evidence, "initial", room, (true,true), &settings, "task-exact");
+        for mutation in ["model", "effort", "task", "defaults", "catalog", "hidden"] {
+            let mut wrong = evidence.clone();
+            match mutation {
+                "model" => wrong["displayedSettings"]["model"] = json!("model-a"),
+                "effort" => wrong["submittedSettings"]["reasoningEffort"] = json!("effort-medium"),
+                "task" => wrong["acceptedTurn"]["taskId"] = json!("wrong-task"),
+                "defaults" => wrong["defaultsReads"] = json!(2),
+                "catalog" => wrong["catalogReads"] = json!(0),
+                "hidden" => wrong["displayedSettings"] = Value::Null,
+                _ => unreachable!(),
+            }
+            assert!(std::panic::catch_unwind(|| assert_ui_pair(&wrong, "initial", room, (true,true), &settings, "task-exact")).is_err(), "missed {mutation}");
+        }
+        let baseline = json!({"triggerEventId":"trigger-new","context":{"kind":"baseline","baseRevision":0,"nativeReplyBindings":[],"entries":[
+            {"eventId":"prior-public-reply","authorRole":"agent","text":"public reply"},{"eventId":"trigger-new","authorRole":"human","text":"new question"}]}});
+        let capture = json!({"request":{"params":{"input":[{"type":"text","text_elements":[],"text":baseline.to_string()}]}}});
+        assert_native_packet(&capture, &baseline);
+        assert!(std::panic::catch_unwind(|| assert_native_input(&capture, &baseline)).is_err(), "human-only continuation protection remains strict");
+        let mut changed_baseline = baseline.clone(); changed_baseline["context"]["entries"][0]["text"] = json!("invented reply");
+        assert!(std::panic::catch_unwind(|| assert_native_packet(&capture, &changed_baseline)).is_err());
+        let native = json!({"request":{"params":{"threadId":"thread-exact","model":"gpt-6-sol","effort":"high"}}});
+        assert_native_pair(&native, &settings, &json!("thread-exact"));
+        for field in ["model", "effort", "threadId"] {
+            let mut wrong = native.clone(); wrong["request"]["params"][field] = json!("wrong");
+            assert!(std::panic::catch_unwind(|| assert_native_pair(&wrong, &settings, &json!("thread-exact"))).is_err());
+        }
+        let mut hidden = evidence.clone(); hidden["capabilities"] = json!({"modelSelection":false,"reasoningEffort":false});
+        hidden["displayedSettings"] = Value::Null; hidden["submittedSettings"] = Value::Null; hidden["defaultsReads"] = json!(0); hidden["catalogReads"] = json!(0);
+        assert_ui_pair(&hidden, "initial", room, (false,false), &settings, "task-exact");
+        hidden["defaultsReads"] = json!(1);
+        assert!(std::panic::catch_unwind(|| assert_ui_pair(&hidden, "initial", room, (false,false), &settings, "task-exact")).is_err());
     }
     #[tokio::test]
     async fn durable_checkpoint_refuses_an_unbound_receipt() -> Result<()> {

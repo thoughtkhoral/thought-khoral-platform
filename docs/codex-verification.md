@@ -193,3 +193,79 @@ licensing, secret/session exclusion, and independent build/release checks.
 Record each result against the source revision or image used. Publishing an
 image or tag, activating or deploying a service, pushing or merging a branch,
 and making live provider calls remain separate actions.
+
+## Unreleased defaults-discovery candidate
+
+The [approved defaults amendment and local plan](../.ai/specs/how/default-settings-discovery-implementation-plan.md)
+authorize this separate local synthetic mode:
+
+```sh
+node --test scripts/tests/codex-defaults-pins.test.mjs
+TASK9_KEEP_FIXTURE=1 node scripts/smoke-codex-conversation.mjs --fake --defaults-candidate
+```
+
+The default `--fake` and live operator packet retain the reviewed published v1.0
+pins above. `--defaults-candidate` is rejected with `--live` before any packet,
+credential, listener or container access. Candidate metadata is committed in
+[`defaults-candidate-pins.json`](../scripts/fixtures/codex-conversation/defaults-candidate-pins.json)
+and anchored by the runner. It names contracts commit
+`1ea828f28725ddaaefa21d083473f9abbd777975`, archive SHA-256
+`fab59a486f6498b843467202debcb0768403bd57ba7dda41be2a01e5f23fdda8`, and external
+lock SHA-256 `7914d32eae2487879a68405b5095a6b9aa91355f87529c43f4055844821902a9`.
+The candidate is explicitly `unreleased-local-candidate`; its proposed v1.1.0
+release has not been published.
+
+| Source | Exact candidate revision | Path override |
+| --- | --- | --- |
+| Contracts | `1ea828f28725ddaaefa21d083473f9abbd777975` | `TASK9_CONTRACTS_REPO` |
+| Broker | `2e7d23b467c572819f498c3b9bf14d74a62dc821` | `TASK9_BROKER_REPO` |
+| UI including test-only orchestration | `7ba5e29a1d5ce9b23ae77b2e31528cd91368b0ea` | `TASK9_UI_REPO` |
+| Mediator | `6c3d96b4763871b9addc9bc7223e71ee7d38abd9` | `TASK9_MEDIATOR_REPO` |
+| Worker | `b0d43ec2b5b0c8da035d4ccff754545132b978d4` | `TASK9_WORKER_REPO` |
+
+Overrides change source paths only. Every revision and clean tree is checked
+before resources start. The anchored external archive and all 156 candidate
+payload files must agree with both broker and UI vendors, including exact lock
+bytes. The 135 published payload files and published locks in broker, UI,
+mediator and worker remain byte-for-byte unchanged. Extra, missing, changed or
+symlinked vendor entries fail closed. Mediator and worker continue using the
+unchanged v1 task/result protocol and therefore retain their reviewed sources.
+
+The candidate runner preserves the baseline's 11 native turns and six recovery
+boundaries, then adds 12 actual rendered `RoomPage` HTTP cases: both controls,
+effort only, model only, and neither, each with initial, restored and explicit
+New phases. B/high deployment defaults differ from the first catalog model A.
+After initial completion, deployment defaults change to A/medium; restored
+shared B/high persists without another defaults read, while explicit New uses
+A/medium and a distinct native thread. Neither-capability UI requests omit
+settings and make zero defaults/catalog reads; assertions cover the broker's
+selected pair without claiming that hidden settings were displayed.
+
+The fixture reads the actual DOM pair and actual accepted HTTP response,
+compares the task-bound PostgreSQL frozen packet, dispatches through the real
+mediator and worker, and matches native input by the exact trigger plus worker
+receipt thread binding. Additional display/send barriers prove a default-only
+change preserves a displayed valid B/high pair, and stale/removed pairs are
+rejected without any task, event or native turn. The UI retains its prompt,
+blocks invocation on a repeated Send action and exposes explicit Refresh settings. Replaying an accepted
+request after defaults/catalog unavailability returns its original acceptance
+without another native turn. Candidate cases add 13 native turns independently
+of the baseline count.
+
+`GET /api/agent-conversations/v1/rooms/{roomId}/agents/{agentId}/defaults` requires
+the existing authenticated-human authority and returns only the closed selected
+settings view with `Cache-Control: no-store`. Direct HTTP checks confirm no
+conversation, task, event, lease or native-thread allocation. The current
+five-second settings-validation bound still applies. Only the test policy's
+turn deadline is longer to allow the UI child to finish its local test process
+before mediation; it does not alter deployment behavior.
+
+Each candidate run prints its owned state directory and exact source metadata.
+`defaults-matrix.json`, per-task comparisons, exclusive UI evidence files and
+child logs with bounded process completion remain available with `TASK9_KEEP_FIXTURE=1`; candidate
+failures retain evidence. Processes and the owned database container are always
+cleaned. The child uses jsdom and a synthetic room socket with real conversation
+HTTP. This is local synthetic acceptance; packaged Compose, a browser, real
+Keycloak and live-provider acceptance remain separate pending gates. Independent
+review of the exact platform and test-only UI commits is also required before
+closing the defaults finding.
