@@ -12,6 +12,11 @@ if args.version:
     print('codex-cli 0.160.0')
     sys.exit(0)
 
+# Durable ownership registration precedes requests/holds. The outer owner can
+# clean a group even if its leader died and only native descendants remain.
+with open(args.capture + '.groups', 'a', encoding='utf-8') as groups:
+    groups.write(str(os.getpgrp()) + '\n')
+
 def emit(value):
     print(json.dumps(value, ensure_ascii=False), flush=True)
 
@@ -32,8 +37,9 @@ initialized = False
 thread_id = 'thread-exact'
 def hold(stage):
     if args.scenario == stage:
+        subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)', args.capture])
         with open(args.capture + '.' + stage + '.stage', 'w', encoding='utf-8') as marker:
-            marker.write(stage)
+            json.dump({'stage': stage, 'pid': os.getpid(), 'pgid': os.getpgrp()}, marker)
         while True:
             time.sleep(0.05)
 for line in sys.stdin:

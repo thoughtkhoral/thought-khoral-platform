@@ -84,3 +84,36 @@ admission/availability checks. No instantaneous UI withdrawal is claimed.
 See the derived [local operator and verification guide](../../../docs/codex-local.md)
 for precise evidence scope. Synthetic kernel, TLS, package, and CLI captures do
 not establish real provider access, billing, or live room conversation behavior.
+
+
+## Task 9 verification refinements (2026-10-07)
+
+The platform-owned composed fixture decodes both initial and continuation native
+inputs and compares their complete context to the broker's frozen packet. The
+continuation has exactly the intervening public event and current trigger,
+with one accepted-reply binding naming its event, source task, sequence,
+generation, and text digest; prior history and assistant reply text cannot be
+reinjected. A fake native protocol marker does not establish persistence:
+after-turn-binding process loss waits for the actual SQLite running/thread/turn
+receipt with a bounded deadline.
+
+Each run owns a detached fixture process group and registered native groups.
+Boundary guards terminate held native groups even when assertions fail; the
+outer runner terminates and waits for its own descendants on success, failure,
+SIGINT, or SIGTERM before removing state. It checks container removal and
+surfaces cleanup errors while retaining diagnostic state. No cleanup searches
+or kills resources from another fixture run. Negative cleanup verification
+uses held native subprocesses and descendants, assertion failure, and both
+outer signals. The known synthetic denied-model diagnostic is bounded,
+asserted, and labeled; unexpected child stderr fails the check.
+
+Live packet, credential, and new evidence paths are canonicalized through the
+nearest existing ancestor and must lie outside every Git worktree, including
+linked worktrees and symlinked parents. Existing packet/credential files must
+be owner-only regular files; the evidence destination is preflighted before
+container inspection and reserved privately before broker requests. A failed
+alternate setting records only the broker's known safe failure code and fails
+the live gate, retaining partial evidence. The pinned error vocabulary has no
+account-specific model denial code, so account availability stays unclassified
+for those failures. No live execution or provider-access evidence follows from
+these guard and synthetic fixture tests.

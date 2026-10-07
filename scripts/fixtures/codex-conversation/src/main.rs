@@ -27,7 +27,7 @@ use std::{
     path::{Path, PathBuf},
     pin::Pin,
     sync::Arc,
-    time::Duration,
+    time::{Duration, Instant},
 };
 use thought_khoral_agent_gateway::{
     GatewayConfig, RoomGatewayClient,
@@ -46,7 +46,7 @@ use thought_khoral_room_gateway::{
     conversation_service::CatalogQuery,
     conversation_store::ConversationPolicy,
 };
-use tokio::{net::TcpListener, process::{Child, Command}, time::sleep};
+use tokio::{io::AsyncReadExt, net::TcpListener, process::{Child, Command}, time::sleep};
 use uuid::Uuid;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -249,10 +249,71 @@ async fn get(client: &Client, path: &str, token: &str) -> Result<(reqwest::Statu
 fn native_records(path: &Path) -> Result<Vec<Value>> {
     Ok(std::fs::read_to_string(path)?.lines().map(serde_json::from_str).collect::<std::result::Result<_,_>>()?)
 }
+fn assert_native_input(record: &Value, packet: &Value) {
+    let input = record["request"]["params"]["input"].as_array().expect("native input array");
+    assert_eq!(input.len(), 1, "one native input item");
+    assert_eq!(input[0]["type"], "text");
+    assert_eq!(input[0]["text_elements"], json!([]));
+    let decoded: Value = serde_json::from_str(input[0]["text"].as_str().expect("native JSON text")).expect("native input JSON");
+    assert_eq!(decoded, json!({"triggerEventId":packet["triggerEventId"], "context":packet["context"]}), "native source/trigger/context identity");
+    let entries = decoded["context"]["entries"].as_array().expect("native entries");
+    assert_eq!(entries.iter().filter(|e| e["eventId"] == packet["triggerEventId"]).count(), 1, "native trigger occurs once");
+    assert!(entries.iter().all(|e| e["authorRole"] == "human"), "accepted reply cannot be reinjected as assistant history");
+}
+
+// Test-only storage boundary helper: marker observation is not durable receipt evidence.
+async fn bound_receipt(sqlite: &sqlx::SqlitePool, task: &str) -> Result<sqlx::sqlite::SqliteRow> {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        if let Some(row) = sqlx::query("SELECT phase,thread_id,turn_id FROM receipts WHERE task_id=?")
+            .bind(task).fetch_optional(sqlite).await? {
+            if row.get::<String,_>("phase") == "running"
+                && row.get::<Option<String>,_>("thread_id").is_some_and(|id| !id.is_empty())
+                && row.get::<Option<String>,_>("turn_id").as_deref() == Some("turn-exact") { return Ok(row); }
+        }
+        if Instant::now() >= deadline { return Err("Task9 durable turn binding checkpoint timed out".into()); }
+        sleep(Duration::from_millis(10)).await;
+    }
+}
+
 async fn run_mediator(expect_success: bool) -> Result<()> {
-    let status = Command::new(env::current_exe()?).arg("--mediator-once").status().await?;
-    if status.success() != expect_success { return Err(format!("Task9 mediator child exited {status}; expected success={expect_success}").into()); }
+    let mut child = Command::new(env::current_exe()?).arg("--mediator-once")
+        .stderr(std::process::Stdio::piped()).kill_on_drop(true).spawn()?;
+    let mut diagnostic = Vec::new();
+    child.stderr.take().unwrap().take(8193).read_to_end(&mut diagnostic).await?;
+    if diagnostic.len() > 8192 {
+        stop_child(&mut child).await?;
+        return Err("Task9 mediator diagnostic exceeded synthetic capture bound".into());
+    }
+    let status = child.wait().await?;
+    if status.success() != expect_success || (!expect_success && diagnostic != b"Error: Validation(ValidationError)\n") {
+        return Err(format!("Task9 mediator exited {status}; expected success={expect_success}; bounded synthetic stderr: {}",
+            String::from_utf8_lossy(&diagnostic)).into());
+    }
+    if !expect_success {
+        println!("Task9 expected synthetic denied-model diagnostic: Error: Validation(ValidationError)");
+    } else if !diagnostic.is_empty() {
+        return Err(format!("Task9 unexpected bounded synthetic mediator stderr: {}", String::from_utf8_lossy(&diagnostic)).into());
+    }
     Ok(())
+}
+struct NativeGroup(Option<i32>);
+impl NativeGroup {
+    fn stop(&mut self) -> Result<()> {
+        if let Some(pid) = self.0 {
+            if unsafe { libc::kill(-pid, libc::SIGKILL) } != 0
+                && std::io::Error::last_os_error().raw_os_error() != Some(libc::ESRCH) {
+                return Err(std::io::Error::last_os_error().into());
+            }
+            self.0 = None;
+        }
+        Ok(())
+    }
+}
+impl Drop for NativeGroup {
+    fn drop(&mut self) {
+        if let Err(error) = self.stop() { eprintln!("Task9 native-group cleanup failed: {error}"); }
+    }
 }
 async fn wait_for_worker(client: &Client) -> Result<()> {
     for _ in 0..100 {
@@ -297,11 +358,21 @@ async fn worker_boundary(
     let mut mediator = Command::new(env::current_exe()?).arg("--mediator-once").kill_on_drop(true).spawn()?;
     let marker = state().join(format!("native-requests.jsonl.{scenario}.stage"));
     wait_for_file(&marker).await?;
+    // Register the native group before any fallible receipt/projection assertion.
+    // The outer owner also scans exact executable/capture identities on any exit.
+    let mut native = NativeGroup(if scenario == "hold_send" { None } else {
+        let checkpoint: Value = serde_json::from_slice(&std::fs::read(&marker)?)?;
+        Some(checkpoint["pid"].as_i64().ok_or("Task9 native checkpoint has no PID")?.try_into()?)
+    });
+    assert_ne!(env::var("TASK9_INJECT_FAILURE").as_deref(), Ok(scenario), "Task9 injected boundary assertion failure");
     let mediator_record: Value = serde_json::from_slice(&std::fs::read(state().join("mediator").join(format!("{}.json", accepted["taskId"].as_str().unwrap())))?)?;
     assert_eq!(mediator_record["phase"], "submission-intent", "{scenario}");
     let sqlite = sqlx::SqlitePool::connect(&format!("sqlite://{}?mode=rw", state().join("receipts.sqlite").display())).await?;
-    let receipt = sqlx::query("SELECT phase,thread_id,turn_id FROM receipts WHERE task_id=?")
-        .bind(accepted["taskId"].as_str().unwrap()).fetch_optional(&sqlite).await?;
+    let task = accepted["taskId"].as_str().unwrap();
+    let receipt = if expect_turn { Some(bound_receipt(&sqlite, task).await?) } else {
+        sqlx::query("SELECT phase,thread_id,turn_id FROM receipts WHERE task_id=?")
+            .bind(task).fetch_optional(&sqlite).await?
+    };
     if let Some(expected_phase) = expected_phase {
         let receipt = receipt.expect("Task9 worker receipt must exist");
         assert_eq!(receipt.get::<String,_>("phase"), expected_phase, "{scenario}");
@@ -311,11 +382,7 @@ async fn worker_boundary(
     sqlite.close().await;
     stop_child(&mut mediator).await?;
     stop_child(worker).await?;
-    if scenario != "hold_send" {
-        let native_pid = native_records(&state().join("native-requests.jsonl"))?.last().unwrap()["pid"].as_i64().unwrap() as i32;
-        let killed = unsafe { libc::kill(-native_pid, libc::SIGKILL) };
-        assert_eq!(killed, 0, "Task9 must reap its held native fixture group");
-    }
+    native.stop()?;
     *worker = spawn_worker(client, "usage").await?;
     let response = client.get(format!("http://127.0.0.1:9091/control/v1/receipts/{}", accepted["taskId"].as_str().unwrap()))
         .bearer_auth(INVOCATION_SECRET).send().await?;
@@ -469,6 +536,8 @@ async fn parent() -> Result<()> {
     let records = native_records(&state().join("native-requests.jsonl"))?;
     let first_turns = records.iter().filter(|r| r["request"]["method"] == "turn/start").collect::<Vec<_>>();
     assert_eq!(first_turns.len(), 1);
+    assert_native_input(first_turns[0], &frozen);
+    assert_eq!(frozen["context"]["nativeReplyBindings"], json!([]));
     let prompt = first_turns[0]["request"]["params"]["input"][0]["text"].as_str().unwrap();
     assert!(prompt.contains("Task9 Maya proposed green."));
     assert!(prompt.contains("Task9 Leo corrected the timing to Friday."));
@@ -486,9 +555,21 @@ async fn parent() -> Result<()> {
         .bind(Uuid::parse_str(continued["taskId"].as_str().unwrap())?).fetch_one(&pool).await?.get("frozen_input");
     assert_eq!(delta["conversation"]["id"], accepted["conversationId"]);
     assert_eq!(delta["context"]["baseRevision"], frozen["context"]["revision"]);
+    assert_eq!(delta["context"]["entries"].as_array().unwrap().len(), 2, "only intervening and current trigger entries");
+    assert_eq!(delta["triggerEventId"], continued["triggerEventId"]);
     assert_eq!(delta["context"]["entries"][0]["eventId"], json!(intervening));
     assert_eq!(delta["context"]["entries"][1]["eventId"], continued["triggerEventId"]);
-    assert!(!delta.to_string().contains("violet"));
+    assert_eq!(delta["context"]["entries"][0]["text"], "Task9 intervening discussion: budget is twelve.");
+    assert_eq!(delta["context"]["entries"][1]["text"], "@codex-agent What changed?");
+    assert_eq!(delta["context"]["nativeReplyBindings"], json!([{
+        "eventId":view["replyEventId"], "sequence":events.last().unwrap().sequence,
+        "sourceTaskId":accepted["taskId"], "generation":accepted["generation"],
+        // SHA-256 of the known synthetic final text, independently fixed by this fixture.
+        "textDigest":"228c39c3d786e5a4c8018cc5d7ca5f272cd0985c5f60cdc8e36c6fd769d04021"
+    }]));
+    for excluded in ["violet", "orange", "Task9 Maya proposed green.", "Task9 Leo corrected the timing to Friday.", "@codex-agent What did Maya propose?", "Maya proposed green."] {
+        assert!(!delta.to_string().contains(excluded), "continuation reinjected excluded/old text");
+    }
     let wrong = turn(other_room, "@codex-agent Cross-room bind?", json!({"mode":"continue","id":accepted["conversationId"],"generation":accepted["generation"]}), None);
     let (wrong_status, _) = post_json(&client, "/api/agent-conversations/v1/turns", &token, &wrong).await?;
     assert!(!wrong_status.is_success(), "another room bound the conversation");
@@ -500,7 +581,12 @@ async fn parent() -> Result<()> {
     assert_eq!(status, reqwest::StatusCode::OK);
     assert_eq!(second_view["state"], "completed", "{second_view}");
     let records = native_records(&state().join("native-requests.jsonl"))?;
-    assert_eq!(records.iter().filter(|r| r["request"]["method"] == "turn/start").count(), 2);
+    let continued_turns = records.iter().filter(|r| r["request"]["method"] == "turn/start").collect::<Vec<_>>();
+    assert_eq!(continued_turns.len(), 2);
+    assert_native_input(continued_turns[0], &frozen);
+    assert_native_input(continued_turns[1], &delta);
+    let second_prompt = continued_turns[1]["request"]["params"]["input"][0]["text"].as_str().unwrap();
+    assert_eq!(second_prompt.matches("@codex-agent What changed?").count(), 1);
     assert_eq!(records.iter().filter(|r| r["request"]["method"] == "thread/start").count(), 1);
     assert_eq!(records.iter().filter(|r| r["request"]["method"] == "thread/resume").count(), 1);
     assert_eq!(second_view["selectedSettings"]["reasoningEffort"], "effort-high");
@@ -582,5 +668,60 @@ async fn main() -> Result<()> {
         Some("--worker-child") => worker_child().await,
         Some("--mediator-once") => mediator_once().await,
         _ => parent().await,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn native_input_rejects_source_changes_duplicate_trigger_old_history_and_reply_reinjection() {
+        let packet = json!({"triggerEventId":"trigger-2", "context":{
+            "entries":[{"eventId":"intervening", "authorRole":"human", "text":"new fact"},
+                {"eventId":"trigger-2", "authorRole":"human", "text":"@codex-agent new question"}],
+            "nativeReplyBindings":[{"eventId":"reply-1", "sourceTaskId":"task-1", "generation":1, "sequence":5,"textDigest":"expected-digest"}]
+        }});
+        let capture = |decoded: &Value| json!({"request":{"params":{"input":[{"type":"text", "text_elements":[], "text":decoded.to_string()}]}}});
+        assert_native_input(&capture(&packet), &packet);
+        for change in ["trigger", "source", "duplicate", "history", "reply", "binding-source", "binding-missing"] {
+            let mut altered = packet.clone();
+            match change {
+                "trigger" => altered["triggerEventId"] = json!("wrong"),
+                "source" => altered["context"]["entries"][0]["eventId"] = json!("wrong"),
+                "duplicate" => {
+                    let trigger = altered["context"]["entries"][1].clone();
+                    altered["context"]["entries"].as_array_mut().unwrap().push(trigger);
+                },
+                "history" => altered["context"]["entries"].as_array_mut().unwrap().push(json!({"eventId":"old", "authorRole":"human", "text":"old fact"})),
+                "reply" => altered["context"]["entries"].as_array_mut().unwrap().push(json!({"eventId":"reply-1", "authorRole":"agent", "text":"accepted answer"})),
+                "binding-source" => altered["context"]["nativeReplyBindings"][0]["sourceTaskId"] = json!("wrong"),
+                "binding-missing" => altered["context"]["nativeReplyBindings"] = json!([]),
+                _ => unreachable!(),
+            }
+            assert!(std::panic::catch_unwind(|| assert_native_input(&capture(&altered), &packet)).is_err(), "missed native mutation {change}");
+        }
+    }
+    #[tokio::test]
+    async fn durable_checkpoint_refuses_an_unbound_receipt() -> Result<()> {
+        let pool = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await?;
+        sqlx::query("CREATE TABLE receipts(task_id TEXT,phase TEXT,thread_id TEXT,turn_id TEXT)").execute(&pool).await?;
+        sqlx::query("INSERT INTO receipts VALUES('task','running','thread',NULL)").execute(&pool).await?;
+        assert!(bound_receipt(&pool, "task").await.is_err());
+        Ok(())
+    }
+    #[tokio::test]
+    async fn turn_boundary_waits_for_delayed_durable_binding() -> Result<()> {
+        let pool = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await?;
+        sqlx::query("CREATE TABLE receipts(task_id TEXT,phase TEXT,thread_id TEXT,turn_id TEXT)").execute(&pool).await?;
+        sqlx::query("INSERT INTO receipts VALUES('task','running','thread',NULL)").execute(&pool).await?;
+        let writer = pool.clone();
+        let update = tokio::spawn(async move {
+            sleep(Duration::from_millis(150)).await;
+            sqlx::query("UPDATE receipts SET turn_id='turn-exact' WHERE task_id='task'").execute(&writer).await.unwrap();
+        });
+        let row = bound_receipt(&pool, "task").await?;
+        assert_eq!(row.get::<Option<String>,_>("turn_id").as_deref(), Some("turn-exact"), "protocol checkpoint preceded durable binding");
+        update.await?;
+        Ok(())
     }
 }

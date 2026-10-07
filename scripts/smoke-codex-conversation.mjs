@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Provider-free composed conversation verification. See docs/codex-verification.md.
 import { execFileSync, spawn } from 'node:child_process';
-import { copyFileSync, mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync, statSync, realpathSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync, statSync, realpathSync, lstatSync, openSync, closeSync, fstatSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, basename, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { createInterface } from 'node:readline/promises';
@@ -63,21 +63,75 @@ function uuid(value) {
 function liveCode(value) {
   return typeof value === 'string' && /^Task9-[A-Za-z0-9-]{8,80}$/.test(value);
 }
+// Resolve the nearest existing ancestor before appending nonexistent output segments.
+// Walk canonical ancestors for .git files/directories: linked and ordinary worktrees,
+// including paths below an uncreated parent. No Git environment can bypass this check.
+export function privatePath(path, label, { output = false } = {}) {
+  if (typeof path !== 'string' || !isAbsolute(path)) throw new Error(`${label} must be an absolute private path`);
+  let ancestor = resolve(path);
+  const suffix = [];
+  for (;;) {
+    try { lstatSync(ancestor); break; }
+    catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      suffix.unshift(basename(ancestor));
+      const parent = dirname(ancestor);
+      if (parent === ancestor) throw error;
+      ancestor = parent;
+    }
+  }
+  const canonicalAncestor = realpathSync(ancestor); // also refuses dangling symlinks
+  const canonical = join(canonicalAncestor, ...suffix);
+  let directory = statSync(canonicalAncestor).isDirectory() ? canonicalAncestor : dirname(canonicalAncestor);
+  for (;;) {
+    let inGit = false;
+    try { lstatSync(join(directory, '.git')); inGit = true; }
+    catch (error) { if (error.code !== 'ENOENT') throw error; }
+    if (inGit) throw new Error(`${label} must be outside all Git worktrees`);
+    const parent = dirname(directory);
+    if (parent === directory) break;
+    directory = parent;
+  }
+  if (output) {
+    if (suffix.length === 0) throw new Error('evidenceFile must be a new file');
+    // Validation above still rejects Git through arbitrarily deep missing parents.
+    if (suffix.length !== 1) throw new Error('evidenceFile parent must already exist');
+    if (!statSync(canonicalAncestor).isDirectory()) throw new Error('evidenceFile parent must be a directory');
+  } else {
+    const metadata = statSync(canonical);
+    if (!metadata.isFile() || (metadata.mode & 0o077) !== 0 || metadata.uid !== process.getuid())
+      throw new Error(`${label} must be an owner-only private regular file`);
+  }
+  return canonical;
+}
 function readToken(path) {
-  if (typeof path !== 'string' || !path.startsWith('/') || realpathSync(path).startsWith(`${root}/`))
-    throw new Error('live token files must be absolute paths outside this repository');
-  if ((statSync(path).mode & 0o077) !== 0) throw new Error('live token file must be private (mode 0600)');
-  const token = readFileSync(path, 'utf8').trim();
+  const canonical = privatePath(path, 'live token file');
+  const token = readFileSync(canonical, 'utf8').trim();
   if (token.length < 100 || token.length > 16384 || /\s/.test(token)) throw new Error('invalid live token file');
-  const claims = JSON.parse(Buffer.from(token.split('.')[1] || '', 'base64url').toString('utf8'));
+  let claims;
+  try { claims = JSON.parse(Buffer.from(token.split('.')[1] || '', 'base64url').toString('utf8')); }
+  catch { throw new Error('invalid live token claims'); }
   if (!uuid(claims.sub) || claims.n2n_role !== 'human') throw new Error('live tokens must be distinct human room credentials');
   return { token, actorId: claims.sub };
+}
+const failureCodes = new Set(['invalid_task_input', 'forbidden', 'conversation_busy', 'conversation_stale',
+  'context_mismatch', 'context_too_large', 'runtime_unavailable', 'authentication_required',
+  'session_unavailable', 'timeout', 'conversation_interrupted', 'execution_failed', 'duplicate_conflict']);
+export function alternateFailure(turn) {
+  const code = failureCodes.has(turn.view.failure?.code) ? turn.view.failure.code : 'unknown';
+  // The pinned profile has no account/model-specific denial code. In particular,
+  // forbidden, authentication_required, and execution_failed cannot prove denial.
+  return { label: 'alternate-settings', taskId: turn.accepted.taskId, state: 'failed',
+    failure: { code }, accountAccess: 'unclassified', gate: 'failed' };
 }
 async function liveMode(args) {
   if (!args.includes('--allow-live')) throw new Error('live verification requires --allow-live');
   const packet = process.env.TASK9_LIVE_OPERATOR_PACKET;
   if (!packet) throw new Error('live verification requires TASK9_LIVE_OPERATOR_PACKET');
-  const value = JSON.parse(readFileSync(packet, 'utf8'));
+  const packetPath = privatePath(packet, 'operator packet');
+  let value;
+  try { value = JSON.parse(readFileSync(packetPath, 'utf8')); }
+  catch { throw new Error('invalid private operator packet'); }
   if (value.profileVersion !== 'thought-khoral.agent-conversation.v1' || value.activationApproved !== true || value.providerCallsApproved !== true)
     throw new Error('live verification requires approved activation and provider calls in the operator packet');
   let origin;
@@ -104,8 +158,7 @@ async function liveMode(args) {
       || value.workerImageDigest !== 'sha256:c5aea93b30d2e70ccbd66bcb6fdef01b8332eea872aaa46a634fa007c44c1b1a'
       || !value.revisions || !Object.entries(reviewedRevisions).every(([key, revision]) => value.revisions[key] === revision))
     throw new Error('live packet requires exact contract, CLI, image digest, and repository revisions');
-  if (typeof value.evidenceFile !== 'string' || !value.evidenceFile.startsWith('/') || resolve(value.evidenceFile).startsWith(`${root}/`))
-    throw new Error('evidenceFile must be an absolute path outside this repository');
+  const evidencePath = privatePath(value.evidenceFile, 'evidenceFile', { output: true });
   const maya = readToken(value.mayaTokenFile);
   const leo = readToken(value.leoTokenFile);
   if (maya.actorId === leo.actorId) throw new Error('Maya and Leo must have distinct human credentials');
@@ -124,6 +177,11 @@ async function liveMode(args) {
     checks: [],
     manualEvidenceStillRequired: ['native thread IDs from retained receipts', 'provider-key exclusion from native outputs', 'live shell/file/MCP and destination denial from runtime and network audit'],
   };
+  // Reserve the validated destination before any broker/provider request. The open
+  // descriptor preserves the same private inode when saving partial evidence.
+  const evidenceFd = openSync(evidencePath, 'wx', 0o600);
+  const metadata = fstatSync(evidenceFd);
+  if (!metadata.isFile() || (metadata.mode & 0o077) !== 0) { closeSync(evidenceFd); throw new Error('evidenceFile must be private'); }
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const endpoint = `/api/agent-conversations/v1/rooms/${value.roomId}`;
   const headers = token => ({ Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' });
@@ -195,7 +253,11 @@ async function liveMode(args) {
             || alternate.view.effectiveSettings?.reasoningEffort !== value.alternateSettings.reasoningEffort)
           throw new Error('alternate settings did not preserve the conversation and effective model/effort');
         requireReply(alternate, [value.interveningCode], 'alternate-settings');
-      } else evidence.checks.push({ label: 'alternate-settings', taskId: alternate.accepted.taskId, state: alternate.view.state, accountAccess: 'unavailable' });
+      } else {
+        const failure = alternateFailure(alternate);
+        evidence.checks.push(failure);
+        throw new Error(`alternate-settings gate failed (${failure.failure.code}); account access unclassified`);
+      }
     }
     const reset = await submit(`@codex-agent Repeat Maya's initial public code.`, { mode: 'new' });
     if (reset.accepted.conversationId === first.accepted.conversationId) throw new Error('new session reused the old conversation ID');
@@ -217,9 +279,16 @@ async function liveMode(args) {
           requiresRuntimeAndNetworkAudit: true });
       }
     }
-    writeFileSync(value.evidenceFile, `${JSON.stringify(evidence, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
-    process.stdout.write(`Task9 live API checks recorded in ${value.evidenceFile}; inspect native receipts, tool policy, and network audit before accepting live coverage.\n`);
-  } finally { rl.close(); }
+    evidence.gate = 'passed';
+  } catch (error) {
+    evidence.gate = 'failed';
+    throw error;
+  } finally {
+    rl.close();
+    try { writeFileSync(evidenceFd, `${JSON.stringify(evidence, null, 2)}\n`); }
+    finally { closeSync(evidenceFd); }
+  }
+  process.stdout.write(`Task9 live API checks recorded in ${value.evidenceFile}; inspect native receipts, tool policy, and network audit before accepting live coverage.\n`);
 }
 async function fakeMode() {
   process.stdout.write('Task9 synthetic native protocol fixture: CLI 0.160.0 fields are stub values, not binary/package verification.\n');
@@ -228,13 +297,74 @@ async function fakeMode() {
   const container = `Task9-postgres-${process.pid}`;
   let started = false;
   let child;
-  const cleanup = () => {
-    if (child && child.exitCode === null) child.kill('SIGTERM');
-    if (started) { try { command('podman', ['stop', '-t', '2', container]); } catch {} }
-    if (process.env.TASK9_KEEP_FIXTURE !== '1') rmSync(state, { recursive: true, force: true });
+  let childEnded;
+  let cleaning;
+  let interrupted = false;
+  function ownedGroups() {
+    const processes = command('ps', ['-axo', 'pid=,ppid=,pgid=,command=']).split('\n')
+      .map(row => row.trim().match(/^(\d+)\s+(\d+)\s+(\d+)\s+(.*)$/)).filter(Boolean)
+      .map(([, pid, ppid, pgid, executable]) => ({ pid: Number(pid), ppid: Number(ppid), pgid: Number(pgid), executable }));
+    const groups = new Set();
+    const nativeIdentity = executable => executable.includes(`${join(fixture, 'fake_app_server.py')} --scenario `)
+      && executable.includes(`--capture ${join(state, 'native-requests.jsonl')} `);
+    for (const row of processes) {
+      if (child && row.pgid === child.pid) groups.add(row.pgid);
+      if (row.pid === row.pgid && nativeIdentity(row.executable)) groups.add(row.pgid);
+    }
+    // Every fake registers its group before accepting input. A dead group leader
+    // may leave descendants whose command no longer identifies the fixture. Use
+    // only this run's registry, and refuse a PID reused by an unrelated leader.
+    let registered = '';
+    try { registered = readFileSync(join(state, 'native-requests.jsonl.groups'), 'utf8'); }
+    catch (error) { if (error.code !== 'ENOENT') throw error; }
+    for (const entry of registered.split('\n').filter(Boolean)) {
+      if (!/^[1-9][0-9]*$/.test(entry)) throw new Error('invalid Task9 native ownership registry');
+      const group = Number(entry);
+      const leader = processes.find(row => row.pid === group);
+      if (leader && !nativeIdentity(leader.executable)) continue;
+      if (processes.some(row => row.pgid === group)) groups.add(group);
+    }
+    return groups;
+  }
+  function signalGroup(group, signal) {
+    try { process.kill(-group, signal); }
+    catch (error) { if (error.code !== 'ESRCH') throw error; }
+  }
+  const cleanup = () => cleaning ||= (async () => {
+    const errors = [];
+    try {
+      for (const group of ownedGroups()) signalGroup(group, 'SIGTERM');
+      // Rescan after terminating the owners to catch a native spawn already in flight.
+      for (let attempt = 0; attempt < 100; attempt++) {
+        const groups = ownedGroups();
+        if (!groups.size) break;
+        if (attempt > 1) for (const group of groups) signalGroup(group, 'SIGKILL');
+        await new Promise(r => setTimeout(r, 50));
+      }
+      if (ownedGroups().size) throw new Error('Task9 owned processes survived cleanup');
+      if (childEnded) await childEnded;
+    } catch (error) { errors.push(error); }
+    if (started) {
+      try {
+        command('podman', ['stop', '-t', '2', container]);
+        if (command('podman', ['ps', '-a', '--filter', `name=^${container}$`, '--format', '{{.Names}}']))
+          throw new Error('Task9 PostgreSQL container survived cleanup');
+      } catch (error) { errors.push(error); }
+    }
+    // Retain diagnostic state if cleanup failed; never erase live owners' state.
+    if (!errors.length && process.env.TASK9_KEEP_FIXTURE !== '1') rmSync(state, { recursive: true, force: true });
+    if (errors.length) throw new AggregateError(errors, `Task9 cleanup failed: ${errors.map(e => e.message).join('; ')}`);
+  })();
+  const interrupt = code => {
+    interrupted = true;
+    cleanup().then(() => { process.exitCode = code; }, error => {
+      process.stderr.write(`${error.message}\n`); process.exitCode = 1;
+    });
   };
-  process.once('SIGINT', () => { cleanup(); process.exit(130); });
-  process.once('SIGTERM', () => { cleanup(); process.exit(143); });
+  const onInt = () => interrupt(130);
+  const onTerm = () => interrupt(143);
+  process.on('SIGINT', onInt);
+  process.on('SIGTERM', onTerm);
   try {
     const packageDir = generatePackage(state, paths);
     command('podman', ['run', '--detach', '--rm', '--name', container,
@@ -254,19 +384,26 @@ async function fakeMode() {
       TASK9_FAKE_APP_SERVER: join(fixture, 'fake_app_server.py'),
       CARGO_TARGET_DIR: process.env.TASK9_CARGO_TARGET_DIR || join(tmpdir(), 'Task9-codex-conversation-target'),
     };
-    child = spawn('cargo', ['run', '--locked', '--offline', '--manifest-path', join(packageDir, 'Cargo.toml')], { env, stdio: 'inherit' });
-    const code = await new Promise((resolveCode, reject) => { child.once('exit', resolveCode); child.once('error', reject); });
-    if (code !== 0) throw new Error(`composed fixture exited ${code}`);
-  } finally { cleanup(); }
+    child = spawn('cargo', ['run', '--locked', '--offline', '--manifest-path', join(packageDir, 'Cargo.toml')], { env, stdio: 'inherit', detached: true });
+    childEnded = new Promise((resolveCode, reject) => { child.once('exit', resolveCode); child.once('error', reject); });
+    const code = await childEnded;
+    if (!interrupted && code !== 0) throw new Error(`composed fixture exited ${code}`);
+  } finally {
+    try { await cleanup(); }
+    finally { process.removeListener('SIGINT', onInt); process.removeListener('SIGTERM', onTerm); }
+  }
 }
 
-const args = process.argv.slice(2);
-try {
-  if (args.length === 1 && args[0] === '--help') process.stdout.write(help);
-  else if (args.includes('--live')) await liveMode(args);
-  else if (args.length === 1 && args[0] === '--fake') await fakeMode();
-  else throw new Error(`expected --fake or --live\n${help}`);
-} catch (error) {
-  process.stderr.write(`Task9: ${error.message}\n`);
-  process.exitCode = 1;
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const args = process.argv.slice(2);
+  try {
+    if (args.length === 1 && args[0] === '--help') process.stdout.write(help);
+    else if (args.includes('--live')) await liveMode(args);
+    else if (args.length === 1 && args[0] === '--fake') await fakeMode();
+    else throw new Error(`expected --fake or --live\n${help}`);
+  } catch (error) {
+    process.stderr.write(`Task9: ${error.message}\n`);
+    process.exitCode = 1;
+  }
+
 }

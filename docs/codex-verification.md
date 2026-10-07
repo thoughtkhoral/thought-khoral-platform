@@ -14,6 +14,7 @@ From this platform checkout, with Podman, Node, Cargo, Python 3, the local
 
 ```sh
 node --test scripts/tests/codex-conversation-smoke.test.mjs
+node --test scripts/tests/codex-conversation-cleanup.test.mjs
 node scripts/smoke-codex-conversation.mjs --fake
 ```
 
@@ -50,8 +51,13 @@ the native app-server executable is fake. The fixture uses the real broker
 Axum routes, JWT validation, PostgreSQL migrations, conversation store and
 context builder, mediator dispatcher/catalog/WorkerClient, and worker A2A,
 receipt, and native-protocol adapter. Ordinary room history is seeded through
-the broker's production `append_event` function. The runner stops its own
-container and children and removes its own temporary state. Set
+the broker's production `append_event` function. The runner registers owned native process groups, terminates its own detached
+fixture group and native descendants, waits for exit, checks container removal,
+and only then removes its temporary state. Assertion failure, SIGINT, and
+SIGTERM receive the same cleanup; errors retain state and fail the run. The
+cleanup regression command injects a real held-boundary assertion failure and
+both outer signals, with a held native descendant, and checks no owned processes
+or container remain. Set
 `TASK9_KEEP_FIXTURE=1` only for debugging synthetic state; it still stops the
 container. `TASK9_CARGO_TARGET_DIR` may select a separate fixture build cache.
 
@@ -68,7 +74,12 @@ text, another room's rejected conversation binding, concurrent duplicate
 requests yielding one task/turn/reply, worker restart with one native
 `thread/start` and one `thread/resume`, a distinct reset thread with defaults,
 model and effort change, latest-request usage, and synthetic provider denial
-without fallback.
+without fallback. Both native JSON inputs are decoded and compared to the exact
+frozen packet, including trigger and every source entry. Continuation asserts
+exactly two entries and one native reply binding with the accepted event,
+source task, generation, sequence, and text digest. Old baseline entries and
+assistant reply text cannot appear as new input. Expected synthetic denial
+stderr is bounded, asserted, and labeled; unexpected diagnostics fail the gate.
 
 | Injected boundary | Durable state before process loss | Required observation |
 | --- | --- | --- |
@@ -82,7 +93,9 @@ without fallback.
 The last two use a one-shot delay around the real broker update route; no
 broker validation or commit logic is replaced. The first four use a bounded
 five-second fixture turn deadline and real broker expiry, so they establish
-visible failure rather than an exactly-once provider guarantee.
+visible failure rather than an exactly-once provider guarantee. The turn-bound
+window polls the actual SQLite receipt until running phase and thread/turn
+binding are durable; the fake protocol marker alone is not the kill barrier.
 
 This evidence is **real synthetic composed-stack** evidence. It does not run
 the packaged Compose deployment, a real Keycloak server, browser UI, retained
@@ -102,14 +115,19 @@ to a private path outside Git and fill in the actual room ID, unique `Task9-`
 codes, two private token-file paths, activated worker container/image digest,
 and exact revisions. Set `activationApproved` and `providerCallsApproved` only
 after they are actually approved. The script reads but never prints the human
-tokens; their files must be outside this repository with owner-only access.
+tokens; the operator packet and token files must be owner-only regular files
+outside **all** Git worktrees. The path guard follows existing parent symlinks
+and recognizes linked worktrees before reading packet/token contents.
 The broker must be port-forwarded to the exact loopback HTTP origin in the
 packet. Replace the template's zero platform revision with `git rev-parse HEAD`
 from this verified checkout; the runner requires the reviewed revisions and
 image digest. Select `alternateSettings` from the active authenticated model catalog
 if an accessible second model or effort is available. Set
 `toolProbesApproved` only if the five live tool and key-exposure prompts are in
-the approved scope. The evidence file must be a new path outside Git.
+the approved scope. The evidence file must be a new path in an existing
+directory outside all Git worktrees. Its canonical destination is preflighted
+before container inspection, then reserved with mode 0600 before broker requests;
+an existing file is refused and never overwritten.
 
 ```sh
 TASK9_LIVE_OPERATOR_PACKET=/private/tmp/Task9-live-operator.json \
@@ -129,8 +147,12 @@ Compose procedure; the runner compares container start times and continues
 the same conversation, then creates a new session and checks that the initial
 public fact is available as a fresh authorized baseline. It records the
 selected/effective settings and usage from each task. A configured alternate
-setting is exercised on the same conversation; inaccessible account coverage
-is reported as unavailable. Approved shell, file, external-tool, destination,
+setting is exercised on the same conversation. Any failed task records its
+known safe broker failure code, fails the live gate, and retains partial
+evidence without reply text. The pinned profile cannot distinguish account
+model denial from its generic errors, so account access remains unclassified;
+authentication, timeout, protocol, authorization, and recovery failures cannot
+be reported as an unavailable account. Approved shell, file, external-tool, destination,
 and provider-key prompts are submitted as separate explicit turns.
 
 The JSON result deliberately stores IDs and projections, not tokens or reply
