@@ -267,6 +267,10 @@ that readers cannot observe incomplete messages; completed invalid release
 messages still fail closed. Staging files are removed on success or conflict.
 
 Each candidate run prints its owned state directory and exact source metadata.
+The printed record and `defaults-source-pins.json` also include `validatedPaths`,
+the resolved checkout paths actually checked by source preflight, including any
+`TASK9_*_REPO` overrides. Reviewed metadata paths, source heads and artifact hashes
+remain unchanged beside this run-specific provenance.
 `defaults-matrix.json`, per-task comparisons, exclusive UI evidence files and
 child logs with bounded process completion remain available with `TASK9_KEEP_FIXTURE=1`; candidate
 failures retain evidence. Processes and the owned database container are always

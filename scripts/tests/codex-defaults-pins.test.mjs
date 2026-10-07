@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, existsSync, readdirSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import * as runner from '../smoke-codex-conversation.mjs';
@@ -29,6 +29,28 @@ test('candidate sources include exact reviewed UI and contracts with matching ar
   assert.deepEqual(Object.keys(paths).sort(), ['broker', 'contracts', 'mediator', 'ui', 'worker']);
   assert.equal(paths.broker, join(candidateRoot, 'room-gateway'));
 });
+test('candidate evidence records validated override paths beside immutable metadata', () => temporary(dir => {
+  const metadata = runner.verifyCandidatePins();
+  const aliases = Object.fromEntries(Object.entries(metadata.sources).map(([key, source]) => {
+    const alias = join(dir, key); symlinkSync(source.path, alias, 'dir');
+    return [key, alias];
+  }));
+  function withOverrides(entries, fn) {
+    if (!entries.length) return fn();
+    const [[key, path], ...rest] = entries;
+    return override(`TASK9_${key.toUpperCase()}_REPO`, path, () => withOverrides(rest, fn));
+  }
+  const paths = withOverrides(Object.entries(aliases), () => runner.sourcePins({ defaultsCandidate: true }));
+  assert.deepEqual(paths, aliases, 'real preflight must validate the overridden checkout locations');
+  const evidence = runner.recordCandidateSources(dir, paths);
+  const recorded = JSON.parse(readFileSync(join(dir, 'defaults-source-pins.json'), 'utf8'));
+  assert.deepEqual(recorded.validatedPaths, aliases);
+  const { validatedPaths, ...recordedMetadata } = recorded;
+  assert.deepEqual(recordedMetadata, metadata, 'reviewed heads, hashes and default metadata remain unchanged');
+  assert.deepEqual(evidence, recorded, 'printed evidence must match the written record');
+  assert.throws(() => runner.recordCandidateSources(dir, paths), { code: 'EEXIST' });
+  assert.deepEqual(JSON.parse(readFileSync(join(dir, 'defaults-source-pins.json'), 'utf8')), recorded);
+}));
 test('candidate flag is explicitly rejected by live before operator packet or credentials', () => {
   for (const args of [['--live', '--defaults-candidate'], ['--live', '--allow-live', '--defaults-candidate'], ['--fake', '--live', '--defaults-candidate']]) {
     const result = spawnSync(process.execPath, [script, ...args], { encoding: 'utf8', env: { PATH: process.env.PATH, TASK9_LIVE_OPERATOR_PACKET: '/does-not-exist' } });

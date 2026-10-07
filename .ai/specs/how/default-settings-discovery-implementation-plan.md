@@ -300,8 +300,9 @@ Run focused tests GREEN, `npm test`, `npm run build`, `git diff --check`; commit
 ### Task 4: Composed synthetic acceptance, exact pins and derived documentation
 
 **Files:**
-- Modify platform `scripts/smoke-codex-conversation.mjs`, `scripts/fixtures/codex-conversation/src/main.rs`, `scripts/tests/codex-conversation-smoke.test.mjs`, `docs/codex-verification.md`, `docs/codex-local.md` where its settings description changes.
+- Modify platform `scripts/smoke-codex-conversation.mjs`, `scripts/fixtures/codex-conversation/src/main.rs`, `docs/codex-verification.md`, `docs/codex-local.md` where its settings description changes.
 - Add `scripts/fixtures/codex-conversation/defaults-candidate-pins.json`, `scripts/tests/codex-defaults-pins.test.mjs`.
+- Retain `scripts/tests/codex-conversation-smoke.test.mjs` unchanged: its thirteen runner guards remain separate from the twenty-five candidate preflight tests in `scripts/tests/codex-defaults-pins.test.mjs`. Final review adds one focused override-path recording regression to the dedicated file (twenty-six tests total).
 - Update canonical plan checkboxes and approved How/index evidence status; preserve existing live operator packet and live pin requirements.
 
 **Interfaces:**

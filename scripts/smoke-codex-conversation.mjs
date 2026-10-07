@@ -40,6 +40,11 @@ export function verifyCandidatePins(path = join(fixture, 'defaults-candidate-pin
   if (sha256(bytes) !== candidatePinsSha256) throw new Error('candidate metadata differs from reviewed source anchor');
   return JSON.parse(bytes);
 }
+export function recordCandidateSources(state, paths) {
+  const evidence = { ...verifyCandidatePins(), validatedPaths: { ...paths } };
+  writeFileSync(join(state, 'defaults-source-pins.json'), JSON.stringify(evidence, null, 2) + '\n', { flag: 'wx' });
+  return evidence;
+}
 export function verifyVendor(directory, { legacy = false } = {}) {
   const lockBytes = readFileSync(join(directory, 'lock.json'));
   if (sha256(lockBytes) !== (legacy ? legacyLockSha256 : candidateLockSha256)) throw new Error('vendor lock anchor mismatch');
@@ -435,9 +440,9 @@ async function fakeMode({ defaultsCandidate = false } = {}) {
   try {
     const packageDir = generatePackage(state, paths);
     if (defaultsCandidate) {
-      writeFileSync(join(state, 'defaults-source-pins.json'), JSON.stringify(verifyCandidatePins(), null, 2) + '\n', { flag: 'wx' });
+      const evidence = recordCandidateSources(state, paths);
       process.stdout.write(`Task9 defaults candidate state: ${state}\n`);
-      process.stdout.write(`Task9 defaults candidate exact sources: ${JSON.stringify(verifyCandidatePins())}\n`);
+      process.stdout.write(`Task9 defaults candidate exact sources: ${JSON.stringify(evidence)}\n`);
     }
     command('podman', ['run', '--detach', '--rm', '--name', container,
       '--env', 'POSTGRES_USER=task9', '--env', 'POSTGRES_PASSWORD=Task9-synthetic-password',
