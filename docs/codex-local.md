@@ -120,6 +120,10 @@ a new cold bootstrap from accepting stale on-disk readiness.
 
 ## Verification scope
 
+The [room-conversation verification guide](codex-verification.md) records the
+composed provider-free smoke, its limits, and the gated live operator procedure
+for the conversation milestone.
+
 - `bash scripts/test-codex-compose.sh`: Compose parser/default/required config.
 - `node scripts/test-codex-bootstrap.mjs`: host declaration admission behavior.
 - `python3 scripts/test-codex-egress.py`: real loopback proxy parsing and invalid
