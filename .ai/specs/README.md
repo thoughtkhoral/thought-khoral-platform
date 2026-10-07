@@ -19,3 +19,13 @@ binding. The UI owns explicit Enter/Leave presentation and socket lifecycle;
 the gateway remains unchanged and exposes no `room.leave` RPC. See the
 [workspace UI lifecycle specification](https://github.com/thoughtkhoral/thought-khoral-workspace-ui/blob/main/.ai/specs/what/mvp-ui.md)
 and [gateway lifecycle boundary](https://github.com/thoughtkhoral/thought-khoral-room-gateway/blob/main/.ai/specs/what/mvp-room.md).
+
+## Approved Codex room-participation extension
+
+- [What: codex local service](what/codex-local-service.md)
+- [How: codex local service](how/codex-local-service.md)
+- [Coordinated implementation plan](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/codex-room-conversations-implementation-plan.md)
+
+Approved by the maintainer on 2026-10-05 under [issue 1](https://github.com/thoughtkhoral/thought-khoral-platform/issues/1).
+Implementation follows the coordinated plan and its artifact/dependency gates.
+Existing runtime behavior is unchanged until the relevant tasks pass verification.

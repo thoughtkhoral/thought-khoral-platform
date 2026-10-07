@@ -14,6 +14,22 @@ room_ips=$(resolve_ipv4 thought-khoral-room-gateway) || exit 1
 keycloak_ips=$(resolve_ipv4 thought-khoral-keycloak) || exit 1
 dns_ips=$(awk '$1 == "nameserver" && $2 !~ /:/ {print $2}' /etc/resolv.conf)
 [ -n "$room_ips" ] && [ -n "$keycloak_ips" ] && [ -n "$dns_ips" ]
+codex_ips=
+if [ "${THOUGHT_KHORAL_CODEX_ENABLED:-false}" = true ]; then
+  codex_ips=$(resolve_ipv4 thought-khoral-codex-agent) || exit 1
+fi
+add_codex_rules() {
+  chain=$1
+  worker_addresses=$2
+  broker_addresses=$3
+  [ "${THOUGHT_KHORAL_CODEX_ENABLED:-false}" = true ] || return 0
+  for address in $worker_addresses; do
+    iptables -w -A "$chain" -m owner --uid-owner 10001 -p tcp -m conntrack --ctorigdst "$address" --ctorigdstport 9091 --ctdir ORIGINAL -j ACCEPT || return 1
+  done
+  for address in $broker_addresses; do
+    iptables -w -A "$chain" -m owner --uid-owner 10001 -p tcp -m conntrack --ctorigsrc "$address" --ctorigdstport 9092 --ctdir REPLY -j ACCEPT || return 1
+  done
+}
 peer_ips=$(printf '%s\n%s\n' "$room_ips" "$keycloak_ips" | sort -u)
 
 # Both IPv4 and IPv6 fail closed. The reference process (UID 10002) has
@@ -28,6 +44,7 @@ for address in $peer_ips; do
   # Match the original destination, including Kubernetes Service DNAT.
   iptables -w -A THOUGHT_AGENT_PEERS_A -m owner --uid-owner 10001 -p tcp -m conntrack --ctorigdst "$address" --ctorigdstport 8080 --ctdir ORIGINAL -j ACCEPT
 done
+add_codex_rules THOUGHT_AGENT_PEERS_A "$codex_ips" "$room_ips"
 iptables -w -A THOUGHT_AGENT_EGRESS -o lo -j ACCEPT
 # Rule 2 is the only mutable policy pointer. Replacing it switches the full
 # peer allowlist in one kernel operation; the inactive chain is built first.
@@ -56,6 +73,7 @@ if [ "${1:-}" = '--hold' ]; then
     # claim that the namespace is isolated when kernel policy writes fail.
     iptables -w -F "$active_chain" || exit 1
     peer_ips=
+    codex_ips=
   }
   while :; do
     sleep 2
@@ -67,7 +85,11 @@ if [ "${1:-}" = '--hold' ]; then
       # Never retain an address after its service name stops resolving.
       next_peer_ips=
     fi
-    [ "$next_peer_ips" = "$peer_ips" ] && continue
+    next_codex_ips=
+    if [ "${THOUGHT_KHORAL_CODEX_ENABLED:-false}" = true ]; then
+      next_codex_ips=$(resolve_ipv4 thought-khoral-codex-agent) || next_codex_ips=
+    fi
+    [ "$next_peer_ips" = "$peer_ips" ] && [ "$next_codex_ips" = "$codex_ips" ] && [ "$next_room_ips" = "$room_ips" ] && continue
     if ! iptables -w -F "$inactive_chain"; then
       fail_closed_refresh
       continue
@@ -78,6 +100,10 @@ if [ "${1:-}" = '--hold' ]; then
         continue 2
       fi
     done
+    if ! add_codex_rules "$inactive_chain" "$next_codex_ips" "$next_room_ips"; then
+      fail_closed_refresh
+      continue
+    fi
     if ! iptables -w -R THOUGHT_AGENT_EGRESS 2 -j "$inactive_chain"; then
       fail_closed_refresh
       continue
@@ -86,6 +112,8 @@ if [ "${1:-}" = '--hold' ]; then
     active_chain=$inactive_chain
     inactive_chain=$previous_chain
     peer_ips=$next_peer_ips
+    room_ips=$next_room_ips
+    codex_ips=$next_codex_ips
     # Failure to clear the now-inactive chain does not affect the live policy;
     # the next refresh will clear it before staging any new rules.
     iptables -w -F "$inactive_chain" || :

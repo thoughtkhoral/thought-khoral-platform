@@ -1,3 +1,4 @@
+import { readConversationAdmission } from './codex-admission.js';
 const clientId = 'thought-khoral-workspace';
 const keycloakOrigin = 'http://localhost:8081';
 const realm = 'thought-khoral';
@@ -169,6 +170,7 @@ await finishAuthorizationCallback();
 const tokens = readTokens();
 const pageUrl = new URL(location.href);
 window.thoughtKhoralWorkspace = {
+  conversationAdmission: await readConversationAdmission(),
   roomId: pageUrl.searchParams.get('room') ?? undefined,
   participantRole: tokens?.role ?? 'human',
   getAccessToken,
