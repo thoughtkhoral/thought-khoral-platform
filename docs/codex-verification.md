@@ -276,6 +276,6 @@ child logs with bounded process completion remain available with `TASK9_KEEP_FIX
 failures retain evidence. Processes and the owned database container are always
 cleaned. The child uses jsdom and a synthetic room socket with real conversation
 HTTP. This is local synthetic acceptance; packaged Compose, a browser, real
-Keycloak and live-provider acceptance remain separate pending gates. Independent
-review of the exact platform and test-only UI commits is also required before
-closing the defaults finding.
+Keycloak and live-provider acceptance remain separate pending gates. The four task
+reviews and final whole-branch review passed for the exact runtime and test-only UI
+revisions. F1 and defaults discovery are accepted for this local synthetic candidate.

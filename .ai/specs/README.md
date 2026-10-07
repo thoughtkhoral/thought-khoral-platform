@@ -42,5 +42,6 @@ provider use, activation, merge and push retain their separate gates.
 
 The platform-owned defaults candidate fixture records local synthetic UI/HTTP
 acceptance under the [approved local How](how/codex-local-service.md#defaults-candidate-verification-evidence--2026-10-07).
-Independent review and F1 closure remain pending. This evidence does not close
+All four task reviews and the final whole-branch review passed; F1 and defaults
+discovery are accepted for the local synthetic candidate. This evidence does not close
 contract publication, packaged-stack or live-provider gates.

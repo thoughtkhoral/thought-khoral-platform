@@ -199,5 +199,6 @@ real Keycloak or live-provider acceptance.
 Local synthetic verification is recorded for independent specification and code
 review of the exact platform commit and the scoped UI harness range
 `a6aea070199e1eb2e0bd059f7cf0899131a9f092..79e5e7310a450efea561548cd87871446c1939aa`.
-Overall review and F1 closure remain pending; publication, packaged deployment,
+The task reviews and final whole-branch review passed. F1 and defaults discovery
+are accepted for this local synthetic candidate; publication, packaged deployment,
 live-provider use and activation retain their separate gates.
