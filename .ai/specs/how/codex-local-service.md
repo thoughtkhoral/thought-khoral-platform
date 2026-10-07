@@ -132,3 +132,40 @@ deployment defaults. Exact broker failure projections distinguish synthetic
 provider denial, missing native history, and unavailable native runtime using
 matching authenticated failed receipts. These fixtures retain the published
 profile and use only synthetic private state.
+
+## Approved defaults-discovery amendment — 2026-10-07
+
+The maintainer approved the [visible server defaults design](https://github.com/thoughtkhoral/thought-khoral-codex-agent/blob/main/.ai/specs/how/default-settings-discovery-proposal.md) in
+this conversation on 2026-10-07 after an explicit specification approval request.
+It authorizes coordinated local implementation and synthetic verification of
+the additive authenticated defaults query and independently optional model/effort
+controls, including the F1 initial/reset effort-only deadlock. The accepted
+design is the governing amendment to earlier default-visibility wording.
+
+The contracts owner defines `ResolvedSettingsView` at
+`GET /api/agent-conversations/v1/rooms/{roomId}/agents/{agentId}/defaults` in
+new immutable artifact `thought-khoral-agent-conversation-v1.1.0`, retaining the
+v1 profile/namespace and all existing published v1.0 schema/fixture bytes.
+The broker validates authenticated room/agent authority, current admission,
+catalog revision, policy-default pair and five-second bound before responding.
+The read has no task/event/conversation/lease/native-state mutation, exposes no
+effective-settings confirmation, credentials or private/native identifiers,
+uses the existing safe ProfileError/HTTP mapping and `Cache-Control: no-store`.
+There is no inferred catalog-order model or inference fallback.
+
+The UI resolves and displays the concrete explicit next-turn pair when absent
+or explicitly New/reset; restored continuation uses accepted shared settings.
+Both capabilities allow both controls; effort-only keeps the resolved model
+read-only; model-only keeps the displayed model-specific catalog default effort
+read-only; neither capability retains the settings-free path. Unsupported
+controls stay uneditable and no hidden control blocks a valid required choice.
+Catalog/pair mismatch requires bounded refresh or an explicit unavailable state.
+A still-valid explicit pair is not replaced after a deployment-default-only change.
+
+As a scoped exception to the earlier published-artifact-first execution order,
+isolated consumers may pin a reproducible local candidate from an exact committed
+contracts revision, verified archive and per-file SHA-256 values, clearly marked
+unreleased. This exception is only for this amendment's local pre-publication
+development and synthetic testing. Published v1.0 provenance/bytes remain intact.
+No release publication, shipped interoperability, merge, push, provider use or
+service activation is authorized. Whole milestone/Task9 acceptance remains open.
