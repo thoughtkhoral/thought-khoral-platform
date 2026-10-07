@@ -3,6 +3,8 @@
 MVP / active development. This repository composes the local development stack;
 it is not a production deployment distribution.
 
+For the cross-project Codex conversation status and remaining gates, see the [shared status guide](https://github.com/thoughtkhoral/thought-khoral/blob/main/docs/codex-conversation-status.md).
+
 This independent project builds the
 [room gateway](https://github.com/thoughtkhoral/thought-khoral-room-gateway),
 [memory engine](https://github.com/thoughtkhoral/thought-khoral-memory-engine),
