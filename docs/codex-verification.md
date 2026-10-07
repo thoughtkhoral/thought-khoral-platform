@@ -219,7 +219,7 @@ release has not been published.
 | --- | --- | --- |
 | Contracts | `1ea828f28725ddaaefa21d083473f9abbd777975` | `TASK9_CONTRACTS_REPO` |
 | Broker | `2e7d23b467c572819f498c3b9bf14d74a62dc821` | `TASK9_BROKER_REPO` |
-| UI including test-only orchestration | `7ba5e29a1d5ce9b23ae77b2e31528cd91368b0ea` | `TASK9_UI_REPO` |
+| UI including test-only orchestration | `79e5e7310a450efea561548cd87871446c1939aa` | `TASK9_UI_REPO` |
 | Mediator | `6c3d96b4763871b9addc9bc7223e71ee7d38abd9` | `TASK9_MEDIATOR_REPO` |
 | Worker | `b0d43ec2b5b0c8da035d4ccff754545132b978d4` | `TASK9_WORKER_REPO` |
 
@@ -259,6 +259,12 @@ conversation, task, event, lease or native-thread allocation. The current
 five-second settings-validation bound still applies. Only the test policy's
 turn deadline is longer to allow the UI child to finish its local test process
 before mediation; it does not alter deployment behavior.
+
+Display and release handshake messages are written and closed in unique
+same-directory staging files, then atomically published through a hard link
+that refuses replacement of an existing final name. Paused-writer tests verify
+that readers cannot observe incomplete messages; completed invalid release
+messages still fail closed. Staging files are removed on success or conflict.
 
 Each candidate run prints its owned state directory and exact source metadata.
 `defaults-matrix.json`, per-task comparisons, exclusive UI evidence files and

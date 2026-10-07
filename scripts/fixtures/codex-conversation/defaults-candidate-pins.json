@@ -15,7 +15,7 @@
     },
     "ui": {
       "path": "/private/tmp/codex-conversation-defaults/workspace-ui",
-      "head": "7ba5e29a1d5ce9b23ae77b2e31528cd91368b0ea"
+      "head": "79e5e7310a450efea561548cd87871446c1939aa"
     },
     "mediator": {
       "path": "/private/tmp/codex-conversation-final-fix/agent-gateway",

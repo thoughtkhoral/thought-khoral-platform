@@ -31,7 +31,7 @@ function command(program, args, options = {}) {
   return execFileSync(program, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...options }).trim();
 }
 // This digest is a source-controlled anchor, never an environment override.
-const candidatePinsSha256 = '8b5940e59126f63625c927f570ecd330ecf6e912843fe054ad763afd47799371';
+const candidatePinsSha256 = 'b63e6371f0c349052a627b51c819e735a00f184978345ed9217c9d9074b437a9';
 const candidateLockSha256 = '7914d32eae2487879a68405b5095a6b9aa91355f87529c43f4055844821902a9';
 const legacyLockSha256 = '6e579a2624c79dc8472951a95c74a8b460b386e396845c75816014b1b6c86e40';
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');

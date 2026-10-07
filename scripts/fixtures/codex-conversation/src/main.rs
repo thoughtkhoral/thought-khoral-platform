@@ -590,6 +590,24 @@ fn assert_native_pair(record: &Value, expected: &Value, thread: &Value) {
     let effort = match expected["reasoningEffort"].as_str().unwrap() { "effort-medium" => "medium", "effort-high" => "high", _ => panic!("unexpected synthetic effort") };
     assert_eq!(record["request"]["params"]["model"], model); assert_eq!(record["request"]["params"]["effort"], effort);
 }
+// Test-only hook exposes the actual exclusive-open boundary to the unit test.
+fn publish_handshake(path: &Path, bytes: &[u8], after_open: impl FnOnce() -> Result<()>) -> Result<()> {
+    use std::io::Write;
+    let staging = path.with_extension(format!("staging-{}", Uuid::new_v4()));
+    let mut file = std::fs::OpenOptions::new().write(true).create_new(true).open(&staging)?;
+    let published: Result<()> = (|| {
+        after_open()?;
+        file.write_all(bytes)?;
+        drop(file);
+        // Same-directory hard links publish complete bytes without replacing a target.
+        std::fs::hard_link(&staging, path)?;
+        Ok(())
+    })();
+    let removed = std::fs::remove_file(&staging);
+    published?;
+    removed?;
+    Ok(())
+}
 fn write_evidence(path: &Path, value: &Value) -> Result<()> {
     use std::io::Write;
     let mut file = std::fs::OpenOptions::new().write(true).create_new(true).open(path)?;
@@ -671,8 +689,7 @@ async fn ui_child(client: &Client, gateway: &GatewayState, room: Uuid, token: &s
         exact_keys(&shown, &["phase", "capabilities", "displayedSettings", "prompt"]);
         assert_eq!(shown["displayedSettings"], selected("model-b", "effort-high"));
         matrix_policy(gateway, client, if mode == "default-only" { "a" } else { mode }).await?;
-        use std::io::Write;
-        std::fs::OpenOptions::new().write(true).create_new(true).open(&release)?.write_all(b"{\"release\":true}\n")?;
+        publish_handshake(&release, b"{\"release\":true}\n", || Ok(()))?;
     }
     let status = tokio::time::timeout(Duration::from_secs(45), child.wait()).await??;
     if !status.success() { return Err(format!("Task9 UI FAIL {label}: {status}; see owned UI logs").into()); }
@@ -1048,6 +1065,34 @@ async fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn release_publication_is_complete_exclusive_and_invisible_while_writer_paused() -> Result<()> {
+        let directory = env::temp_dir().join(format!("Task9-atomic-release-{}", Uuid::new_v4()));
+        std::fs::create_dir(&directory)?;
+        let release = directory.join("release.json");
+        let target = release.clone();
+        let (opened_tx, opened_rx) = std::sync::mpsc::channel();
+        let (resume_tx, resume_rx) = std::sync::mpsc::channel();
+        let writer = std::thread::spawn(move || publish_handshake(&target, b"{\"release\":true}\n", || {
+            opened_tx.send(())?;
+            resume_rx.recv_timeout(Duration::from_secs(2))?;
+            Ok(())
+        }));
+        opened_rx.recv_timeout(Duration::from_secs(2))?;
+        // Observe the same scheduling boundary that caused the reviewed race.
+        let prematurely_visible = release.exists();
+        resume_tx.send(())?; writer.join().expect("publisher thread")?;
+        let complete = std::fs::read(&release)?;
+        let overwrite = publish_handshake(&release, b"replacement", || Ok(())).expect_err("existing release must not be replaced");
+        let unchanged = std::fs::read(&release)?;
+        let files = std::fs::read_dir(&directory)?.count();
+        std::fs::remove_dir_all(&directory)?;
+        assert!(!prematurely_visible, "exclusive open published an incomplete release");
+        assert_eq!(complete, b"{\"release\":true}\n"); assert_eq!(unchanged, complete);
+        assert_eq!(overwrite.downcast_ref::<std::io::Error>().unwrap().kind(), std::io::ErrorKind::AlreadyExists);
+        assert_eq!(files, 1, "staging files must be cleaned on success and publication conflict");
+        Ok(())
+    }
     #[test]
     fn native_input_rejects_source_changes_duplicate_trigger_old_history_and_reply_reinjection() {
         let packet = json!({"triggerEventId":"trigger-2", "context":{
