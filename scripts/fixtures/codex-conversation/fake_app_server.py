@@ -70,6 +70,8 @@ for line in sys.stdin:
             response(request, {'data': data, 'nextCursor': next_cursor})
         elif method in ('thread/start', 'thread/resume'):
             hold('hold_thread_start')
+            if args.scenario == 'runtime_unavailable':
+                sys.exit(0)
             if args.persistent:
                 from pathlib import Path
                 storage = Path(os.environ['CODEX_HOME']) / 'sessions'

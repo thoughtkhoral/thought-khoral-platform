@@ -23,9 +23,9 @@ three path variables if they are elsewhere:
 
 | Variable | Reviewed repository revision |
 | --- | --- |
-| `TASK9_BROKER_REPO` | room gateway `50d293491ae65250e0603d26645d4bcc4e692b90` |
-| `TASK9_MEDIATOR_REPO` | agent gateway `1900f8d127d744ffb996021fdc2f3fb34858fbda` |
-| `TASK9_WORKER_REPO` | Codex worker `d40e4a8cd5efc77c7161742aec7ade289efb357a` |
+| `TASK9_BROKER_REPO` | room gateway `fd05cb48b8508e7939f9cdf9df275742a06fc4f8` |
+| `TASK9_MEDIATOR_REPO` | agent gateway `6c3d96b4763871b9addc9bc7223e71ee7d38abd9` |
+| `TASK9_WORKER_REPO` | Codex worker `b0d43ec2b5b0c8da035d4ccff754545132b978d4` |
 
 The default paths are the Task 9 review worktrees under `/private/tmp`.
 The runner checks each revision and cleanliness, generates local Cargo path
@@ -64,7 +64,11 @@ container. `TASK9_CARGO_TARGET_DIR` may select a separate fixture build cache.
 The fake executable advertises `0.160.0` in its protocol fields so the real
 worker adapter accepts its synthetic responses. That is a stub value, not a
 measurement of the pinned Codex CLI binary or package. The actual CLI/image
-identity and tool-policy proof remain separate Task 8 package evidence.
+identity and tool-policy proof remain separate package evidence: the Task9 image
+`sha256:2d8bfade27802f910cf68e832722c93b4a2acc2addb825711e1223617a4cd385`
+compiles runtime source `b418a76e0e7ca047b5fe995eb17519aced369a06`; worker
+HEAD `b0d43ec2b5b0c8da035d4ccff754545132b978d4` adds its evidence record.
+Its unchanged native capture retains Task8 attribution, not a new capture claim.
 
 The assertions use stored context source and trigger event IDs, native request
 capture, PostgreSQL task/reply rows, mediator durable records, worker SQLite
@@ -78,8 +82,21 @@ without fallback. Both native JSON inputs are decoded and compared to the exact
 frozen packet, including trigger and every source entry. Continuation asserts
 exactly two entries and one native reply binding with the accepted event,
 source task, generation, sequence, and text digest. Old baseline entries and
-assistant reply text cannot appear as new input. Expected synthetic denial
-stderr is bounded, asserted, and labeled; unexpected diagnostics fail the gate.
+assistant reply text cannot appear as new input. Synthetic provider denial is
+now a handled failure: the broker must expose the authenticated receipt-correlated
+`execution_failed` enum, without native error strings or a fallback. All mediator
+stderr remains bounded; any unexpected diagnostic fails the gate.
+
+Another human continues with omitted settings after worker restart: the accepted,
+effective, and native pair must remain model B/high. Explicit New without overrides
+still selects deployment defaults. A separately held completed result is submitted
+after the real broker deadline and rejected; mediator recovery quarantines it.
+A fresh higher generation succeeds after worker restart on a distinct native
+thread, preserving the old completed receipt and never committing its reply.
+Stale continuation and premature New are rejected. Deleting only that fresh
+synthetic history exercises `session_unavailable`; a fake runtime exiting before
+thread creation exercises `runtime_unavailable`. Both require real matching
+worker receipts, exact public failure codes, zero additional turns, and no reply.
 
 | Injected boundary | Durable state before process loss | Required observation |
 | --- | --- | --- |

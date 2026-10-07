@@ -59,11 +59,11 @@ function privatePacket(directory) {
     factCode: 'Task9-fact-12345678', correctionCode: 'Task9-correction-12345678',
     interveningCode: 'Task9-intervening-12345678', targetedCanary: 'Task9-canary-12345678',
     contractTag: 'thought-khoral-agent-conversation-v1.0.0', cliVersion: '0.160.0',
-    workerImageDigest: 'sha256:c5aea93b30d2e70ccbd66bcb6fdef01b8332eea872aaa46a634fa007c44c1b1a',
+    workerImageDigest: 'sha256:2d8bfade27802f910cf68e832722c93b4a2acc2addb825711e1223617a4cd385',
     revisions: {
       platform: execFileSync('git', ['-C', new URL('../..', import.meta.url).pathname, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
-      broker: '50d293491ae65250e0603d26645d4bcc4e692b90', mediator: '1900f8d127d744ffb996021fdc2f3fb34858fbda',
-      worker: 'd40e4a8cd5efc77c7161742aec7ade289efb357a', ui: 'e4afe0562306d7996f1ed232bc7499ee64d6bc1c',
+      broker: 'fd05cb48b8508e7939f9cdf9df275742a06fc4f8', mediator: '6c3d96b4763871b9addc9bc7223e71ee7d38abd9',
+      worker: 'b0d43ec2b5b0c8da035d4ccff754545132b978d4', ui: 'e51d67e9e1a986601df6b5e1acf68aaf7ae0870d',
     }, mayaTokenFile, leoTokenFile, evidenceFile: join(directory, 'evidence.json'),
   };
 }

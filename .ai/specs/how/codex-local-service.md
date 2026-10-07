@@ -104,8 +104,8 @@ SIGINT, or SIGTERM before removing state. It checks container removal and
 surfaces cleanup errors while retaining diagnostic state. No cleanup searches
 or kills resources from another fixture run. Negative cleanup verification
 uses held native subprocesses and descendants, assertion failure, and both
-outer signals. The known synthetic denied-model diagnostic is bounded,
-asserted, and labeled; unexpected child stderr fails the check.
+outer signals. The synthetic denied-model failure must preserve the receipt-correlated safe
+`execution_failed` code; bounded unexpected child stderr fails the check.
 
 Live packet, credential, and new evidence paths are canonicalized through the
 nearest existing ancestor and must lie outside every Git worktree, including
@@ -117,3 +117,18 @@ the live gate, retaining partial evidence. The pinned error vocabulary has no
 account-specific model denial code, so account availability stays unclassified
 for those failures. No live execution or provider-access evidence follows from
 these guard and synthetic fixture tests.
+
+
+## Final composed recovery regressions
+
+Verification also covers completed-but-unacknowledged worker state after an
+authenticated broker completion is rejected at its real deadline. Quarantine
+preserves the immutable receipt; explicit fresh New must use a strictly newer
+generation and a distinct native thread, including after restart. Stale
+continuation and active-task replacement remain refused; no old reply is inserted.
+An omitted-settings continuation by another human after restart must preserve
+the accepted shared pair through native execution; a fresh New still uses the
+deployment defaults. Exact broker failure projections distinguish synthetic
+provider denial, missing native history, and unavailable native runtime using
+matching authenticated failed receipts. These fixtures retain the published
+profile and use only synthetic private state.

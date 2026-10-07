@@ -12,9 +12,9 @@ import { createInterface } from 'node:readline/promises';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const fixture = join(root, 'scripts/fixtures/codex-conversation');
 const pins = {
-  broker: ['TASK9_BROKER_REPO', '/private/tmp/codex-conversation-task6/room-gateway', '50d293491ae65250e0603d26645d4bcc4e692b90'],
-  mediator: ['TASK9_MEDIATOR_REPO', '/private/tmp/codex-conversation-task6/agent-gateway', '1900f8d127d744ffb996021fdc2f3fb34858fbda'],
-  worker: ['TASK9_WORKER_REPO', '/private/tmp/codex-conversation-task8/worker', 'd40e4a8cd5efc77c7161742aec7ade289efb357a'],
+  broker: ['TASK9_BROKER_REPO', '/private/tmp/codex-conversation-final-fix/room-gateway', 'fd05cb48b8508e7939f9cdf9df275742a06fc4f8'],
+  mediator: ['TASK9_MEDIATOR_REPO', '/private/tmp/codex-conversation-final-fix/agent-gateway', '6c3d96b4763871b9addc9bc7223e71ee7d38abd9'],
+  worker: ['TASK9_WORKER_REPO', '/private/tmp/codex-conversation-final-fix/worker', 'b0d43ec2b5b0c8da035d4ccff754545132b978d4'],
 };
 const help = `Usage: node scripts/smoke-codex-conversation.mjs --fake
        node scripts/smoke-codex-conversation.mjs --live --allow-live
@@ -151,11 +151,11 @@ async function liveMode(args) {
   const reviewedRevisions = {
     platform: command('git', ['-C', root, 'rev-parse', 'HEAD']),
     broker: pins.broker[2], mediator: pins.mediator[2], worker: pins.worker[2],
-    ui: 'e4afe0562306d7996f1ed232bc7499ee64d6bc1c',
+    ui: 'e51d67e9e1a986601df6b5e1acf68aaf7ae0870d',
   };
   if (value.contractTag !== 'thought-khoral-agent-conversation-v1.0.0'
       || value.cliVersion !== '0.160.0'
-      || value.workerImageDigest !== 'sha256:c5aea93b30d2e70ccbd66bcb6fdef01b8332eea872aaa46a634fa007c44c1b1a'
+      || value.workerImageDigest !== 'sha256:2d8bfade27802f910cf68e832722c93b4a2acc2addb825711e1223617a4cd385'
       || !value.revisions || !Object.entries(reviewedRevisions).every(([key, revision]) => value.revisions[key] === revision))
     throw new Error('live packet requires exact contract, CLI, image digest, and repository revisions');
   const evidencePath = privatePath(value.evidenceFile, 'evidenceFile', { output: true });

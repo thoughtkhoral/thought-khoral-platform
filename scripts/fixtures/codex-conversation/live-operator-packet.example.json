@@ -12,15 +12,15 @@
   "interveningCode": "Task9-REPLACE-UNIQUE-INTERVENING-FACT",
   "targetedCanary": "Task9-REPLACE-UNIQUE-TARGETED-CANARY",
   "workerContainer": "thought-khoral-codex-agent",
-  "workerImageDigest": "sha256:c5aea93b30d2e70ccbd66bcb6fdef01b8332eea872aaa46a634fa007c44c1b1a",
+  "workerImageDigest": "sha256:2d8bfade27802f910cf68e832722c93b4a2acc2addb825711e1223617a4cd385",
   "contractTag": "thought-khoral-agent-conversation-v1.0.0",
   "cliVersion": "0.160.0",
   "revisions": {
     "platform": "0000000000000000000000000000000000000000",
-    "broker": "50d293491ae65250e0603d26645d4bcc4e692b90",
-    "mediator": "1900f8d127d744ffb996021fdc2f3fb34858fbda",
-    "worker": "d40e4a8cd5efc77c7161742aec7ade289efb357a",
-    "ui": "e4afe0562306d7996f1ed232bc7499ee64d6bc1c"
+    "broker": "fd05cb48b8508e7939f9cdf9df275742a06fc4f8",
+    "mediator": "6c3d96b4763871b9addc9bc7223e71ee7d38abd9",
+    "worker": "b0d43ec2b5b0c8da035d4ccff754545132b978d4",
+    "ui": "e51d67e9e1a986601df6b5e1acf68aaf7ae0870d"
   },
   "alternateSettings": null,
   "toolProbesApproved": false,

@@ -276,7 +276,7 @@ async fn bound_receipt(sqlite: &sqlx::SqlitePool, task: &str) -> Result<sqlx::sq
     }
 }
 
-async fn run_mediator(expect_success: bool) -> Result<()> {
+async fn run_mediator() -> Result<()> {
     let mut child = Command::new(env::current_exe()?).arg("--mediator-once")
         .stderr(std::process::Stdio::piped()).kill_on_drop(true).spawn()?;
     let mut diagnostic = Vec::new();
@@ -286,14 +286,9 @@ async fn run_mediator(expect_success: bool) -> Result<()> {
         return Err("Task9 mediator diagnostic exceeded synthetic capture bound".into());
     }
     let status = child.wait().await?;
-    if status.success() != expect_success || (!expect_success && diagnostic != b"Error: Validation(ValidationError)\n") {
-        return Err(format!("Task9 mediator exited {status}; expected success={expect_success}; bounded synthetic stderr: {}",
+    if !status.success() || !diagnostic.is_empty() {
+        return Err(format!("Task9 mediator exited {status}; bounded synthetic stderr: {}",
             String::from_utf8_lossy(&diagnostic)).into());
-    }
-    if !expect_success {
-        println!("Task9 expected synthetic denied-model diagnostic: Error: Validation(ValidationError)");
-    } else if !diagnostic.is_empty() {
-        return Err(format!("Task9 unexpected bounded synthetic mediator stderr: {}", String::from_utf8_lossy(&diagnostic)).into());
     }
     Ok(())
 }
@@ -396,7 +391,7 @@ async fn worker_boundary(
         .bind(Uuid::parse_str(accepted["taskId"].as_str().unwrap())?).fetch_one(pool).await?;
     let until = (expires_at - Utc::now()).to_std().unwrap_or_default();
     sleep(until + Duration::from_millis(100)).await;
-    run_mediator(true).await?;
+    run_mediator().await?;
     let (_, task) = get(client, &format!("/api/agent-conversations/v1/rooms/{room}/tasks/{}", accepted["taskId"].as_str().unwrap()), &token).await?;
     assert_eq!(task["state"], "failed", "{scenario}: {task}");
     assert!(task["replyEventId"].is_null());
@@ -432,7 +427,7 @@ async fn mediator_boundary(
         .bind(Uuid::parse_str(task)?).fetch_one(pool).await?;
     assert_eq!(broker_state, match phase { GatePhase::BeforeCommit => "running", GatePhase::AfterCommit => "completed" });
     stop_child(&mut mediator).await?;
-    run_mediator(true).await?;
+    run_mediator().await?;
     let (_, view) = get(client, &format!("/api/agent-conversations/v1/rooms/{room}/tasks/{task}"), &token).await?;
     assert_eq!(view["state"], "completed", "{phase:?}: {view}");
     assert!(!view["replyEventId"].is_null());
@@ -446,6 +441,116 @@ async fn mediator_boundary(
         .filter(|r| r["request"]["method"] == "turn/start").count();
     assert_eq!(after - before, 1, "{phase:?} repeated native turn");
     println!("Task9 mediator boundary {phase:?}: broker {broker_state} -> completed, native turn delta 1, public replies 1");
+    Ok(())
+}
+async fn worker_receipt(client: &Client, task: &str) -> Result<Value> {
+    Ok(client.get(format!("http://127.0.0.1:9091/control/v1/receipts/{task}"))
+        .bearer_auth(INVOCATION_SECRET).send().await?.error_for_status()?.json().await?)
+}
+fn native_turn_count() -> Result<usize> {
+    Ok(native_records(&state().join("native-requests.jsonl"))?.iter()
+        .filter(|r| r["request"]["method"] == "turn/start").count())
+}
+async fn rejected_completion_recovery(
+    client: &Client, pool: &PgPool, issuer: &Issuer, gate: &UpdateGate, worker: &mut Child,
+) -> Result<()> {
+    let room = Uuid::new_v4();
+    let token = issuer.token(Uuid::new_v4().to_string(), Some("human"), Some("Maya"));
+    let before = native_turn_count()?;
+    let (status, old) = post_json(client, "/api/agent-conversations/v1/turns", &token,
+        &turn(room, "@codex-agent Task9 completion rejected by broker.", json!({"mode":"new"}), None)).await?;
+    assert_eq!(status, reqwest::StatusCode::ACCEPTED, "{old}");
+    let task = old["taskId"].as_str().unwrap();
+    gate.arm(task, GatePhase::BeforeCommit).await;
+    let mut mediator = Command::new(env::current_exe()?).arg("--mediator-once").kill_on_drop(true).spawn()?;
+    wait_for_file(&gate.marker(task)).await?;
+    let completed = worker_receipt(client, task).await?;
+    assert_eq!(completed["phase"], "completed");
+    assert!(completed["acknowledgement"].is_null());
+    // The broker still owns an active task; fresh New cannot supersede it.
+    let (busy, _) = post_json(client, "/api/agent-conversations/v1/turns", &token,
+        &turn(room, "@codex-agent Task9 premature New.", json!({"mode":"new"}), None)).await?;
+    assert_eq!(busy, reqwest::StatusCode::CONFLICT);
+    stop_child(&mut mediator).await?;
+    let record_path = state().join("mediator").join(format!("{task}.json"));
+    let record: Value = serde_json::from_slice(&std::fs::read(&record_path)?)?;
+    let expires_at: chrono::DateTime<Utc> = sqlx::query_scalar("SELECT expires_at FROM conversation_tasks WHERE task_id=$1")
+        .bind(Uuid::parse_str(task)?).fetch_one(pool).await?;
+    sleep((expires_at - Utc::now()).to_std().unwrap_or_default() + Duration::from_millis(100)).await;
+    // Submit the actual persisted completion through the authenticated broker API
+    // after expiry. Broker transaction rejects it and stores a terminal failure.
+    let rejected = client.post(format!("http://127.0.0.1:8080/internal/agent-conversations/v1/tasks/{task}/updates"))
+        .bearer_auth(issuer.token("service-account-thought-khoral-agent-gateway".into(), None, None))
+        .header("x-thought-khoral-lease-token", record["lease"].as_str().unwrap())
+        .json(&record["update"]).send().await?;
+    assert!(!rejected.status().is_success());
+    let failure: Value = rejected.json().await?;
+    assert_eq!(failure["code"], "timeout", "{failure}");
+    run_mediator().await?;
+    let quarantined: Value = serde_json::from_slice(&std::fs::read(&record_path)?)?;
+    assert_eq!(quarantined["phase"], "quarantined");
+    assert_eq!(worker_receipt(client, task).await?, completed, "quarantine must preserve completed receipt");
+    let (_, failed) = get(client, &format!("/api/agent-conversations/v1/rooms/{room}/tasks/{task}"), &token).await?;
+    assert_eq!(failed["state"], "failed");
+    assert!(failed["replyEventId"].is_null());
+    let stale = turn(room, "@codex-agent Task9 stale continuation.", json!({"mode":"continue","id":old["conversationId"],"generation":old["generation"]}), None);
+    assert!(!post_json(client, "/api/agent-conversations/v1/turns", &token, &stale).await?.0.is_success());
+    stop_child(worker).await?;
+    *worker = spawn_worker(client, "usage").await?;
+    let (status, fresh) = post_json(client, "/api/agent-conversations/v1/turns", &token,
+        &turn(room, "@codex-agent Task9 explicit fresh recovery.", json!({"mode":"new"}), None)).await?;
+    assert_eq!(status, reqwest::StatusCode::ACCEPTED, "{fresh}");
+    assert!(fresh["generation"].as_u64().unwrap() > old["generation"].as_u64().unwrap());
+    assert_ne!(fresh["conversationId"], old["conversationId"]);
+    run_mediator().await?;
+    let fresh_task = fresh["taskId"].as_str().unwrap();
+    let (_, fresh_view) = get(client, &format!("/api/agent-conversations/v1/rooms/{room}/tasks/{fresh_task}"), &token).await?;
+    assert_eq!(fresh_view["state"], "completed", "{fresh_view}");
+    let fresh_receipt = worker_receipt(client, fresh_task).await?;
+    assert_ne!(fresh_receipt["runtimeBinding"]["threadId"], completed["runtimeBinding"]["threadId"]);
+    assert_eq!(worker_receipt(client, task).await?, completed);
+    assert!(!post_json(client, "/api/agent-conversations/v1/turns", &token, &stale).await?.0.is_success());
+    assert_eq!(native_turn_count()? - before, 2);
+    assert_eq!(events_after(pool, room, 0).await?.iter().filter(|e| e.actor_id == CODEX_AGENT_ID).count(), 1);
+    println!("Task9 rejected completion recovery: broker timeout, quarantine, fresh higher generation/distinct thread after restart; two native turns, one public reply");
+
+    // A genuine failed worker resume/receipt preserves session_unavailable.
+    let thread = fresh_receipt["runtimeBinding"]["threadId"].as_str().unwrap();
+    assert!(thread.starts_with("thread-") && thread.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'));
+    std::fs::remove_file(state().join("native/sessions").join(format!("{thread}.jsonl")))?;
+    let (status, missing) = post_json(client, "/api/agent-conversations/v1/turns", &token,
+        &turn(room, "@codex-agent Task9 missing native history.", json!({"mode":"continue","id":fresh["conversationId"],"generation":fresh["generation"]}), None)).await?;
+    assert_eq!(status, reqwest::StatusCode::ACCEPTED);
+    assert_safe_failure(client, pool, room, &token, &missing, "session_unavailable", 1).await?;
+    assert_eq!(native_turn_count()? - before, 2, "missing history must not start a replacement turn");
+    Ok(())
+}
+async fn assert_safe_failure(client: &Client, pool: &PgPool, room: Uuid, token: &str, accepted: &Value, code: &str, replies: usize) -> Result<()> {
+    run_mediator().await?;
+    let task = accepted["taskId"].as_str().unwrap();
+    let receipt = worker_receipt(client, task).await?;
+    assert_eq!(receipt["phase"], "failed", "{receipt}");
+    assert_eq!(receipt["error"], code);
+    let (_, view) = get(client, &format!("/api/agent-conversations/v1/rooms/{room}/tasks/{task}"), token).await?;
+    assert_eq!(view["state"], "failed", "{view}");
+    assert_eq!(view["failure"]["code"], code, "{view}");
+    assert!(view["replyEventId"].is_null());
+    assert!(!view.to_string().contains("synthetic missing native file"));
+    assert_eq!(events_after(pool, room, 0).await?.iter().filter(|e| e.actor_id == CODEX_AGENT_ID).count(), replies);
+    println!("Task9 receipt-correlated safe failure: {code}; no additional public reply");
+    Ok(())
+}
+async fn unavailable_runtime(client: &Client, pool: &PgPool, issuer: &Issuer, worker: &mut Child) -> Result<()> {
+    stop_child(worker).await?;
+    *worker = spawn_worker(client, "runtime_unavailable").await?;
+    let room = Uuid::new_v4();
+    let token = issuer.token(Uuid::new_v4().to_string(), Some("human"), Some("Leo"));
+    let before = native_turn_count()?;
+    let (status, accepted) = post_json(client, "/api/agent-conversations/v1/turns", &token,
+        &turn(room, "@codex-agent Task9 unavailable native runtime.", json!({"mode":"new"}), None)).await?;
+    assert_eq!(status, reqwest::StatusCode::ACCEPTED);
+    assert_safe_failure(client, pool, room, &token, &accepted, "runtime_unavailable", 0).await?;
+    assert_eq!(native_turn_count()?, before);
     Ok(())
 }
 async fn migrate(pool: &PgPool, broker: &Path) -> Result<()> {
@@ -524,7 +629,7 @@ async fn parent() -> Result<()> {
     assert!(!frozen.to_string().contains("violet"));
     assert!(!frozen.to_string().contains("orange"));
     assert_eq!(frozen["context"]["baseRevision"], 0);
-    run_mediator(true).await?;
+    run_mediator().await?;
     let task_path = format!("/api/agent-conversations/v1/rooms/{room}/tasks/{}", accepted["taskId"].as_str().unwrap());
     let (status, view) = get(&client, &task_path, &token).await?;
     assert_eq!(status, reqwest::StatusCode::OK);
@@ -576,7 +681,7 @@ async fn parent() -> Result<()> {
     worker.kill().await?;
     worker.wait().await?;
     worker = spawn_worker(&client, "usage").await?;
-    run_mediator(true).await?;
+    run_mediator().await?;
     let (status, second_view) = get(&client, &format!("/api/agent-conversations/v1/rooms/{room}/tasks/{}", continued["taskId"].as_str().unwrap()), &token).await?;
     assert_eq!(status, reqwest::StatusCode::OK);
     assert_eq!(second_view["state"], "completed", "{second_view}");
@@ -598,6 +703,27 @@ async fn parent() -> Result<()> {
     let replies = events_after(&pool, room, 0).await?.into_iter().filter(|e| e.actor_id == CODEX_AGENT_ID).count();
     assert_eq!(replies, 2);
 
+    // Another authenticated human reloads the worker and omits overrides.
+    // The accepted shared pair must survive through native execution.
+    stop_child(&mut worker).await?;
+    worker = spawn_worker(&client, "usage").await?;
+    let maya_token = issuer.token(maya.to_string(), Some("human"), Some("Maya"));
+    let (status, shared) = post_json(&client, "/api/agent-conversations/v1/turns", &maya_token,
+        &turn(room, "@codex-agent Task9 keep our shared settings.", json!({"mode":"continue","id":accepted["conversationId"],"generation":accepted["generation"]}), None)).await?;
+    assert_eq!(status, reqwest::StatusCode::ACCEPTED, "{shared}");
+    assert_eq!(shared["selectedSettings"]["model"], "model-b");
+    assert_eq!(shared["selectedSettings"]["reasoningEffort"], "effort-high");
+    run_mediator().await?;
+    let (_, shared_view) = get(&client, &format!("/api/agent-conversations/v1/rooms/{room}/tasks/{}", shared["taskId"].as_str().unwrap()), &maya_token).await?;
+    assert_eq!(shared_view["state"], "completed", "{shared_view}");
+    assert_eq!(shared_view["effectiveSettings"]["model"], "model-b");
+    assert_eq!(shared_view["effectiveSettings"]["reasoningEffort"], "effort-high");
+    let records = native_records(&state().join("native-requests.jsonl"))?;
+    let shared_turn = records.iter().rev().find(|r| r["request"]["method"] == "turn/start").unwrap();
+    assert_eq!(shared_turn["request"]["params"]["model"], "gpt-6-sol");
+    assert_eq!(shared_turn["request"]["params"]["effort"], "high");
+    println!("Task9 omitted continuation: another human after restart retains selected/effective/native model-b/high");
+
     let reset = turn(room, "@codex-agent Start a fresh thread.", json!({"mode":"new"}), None);
     let (status, reset_accepted) = post_json(&client, "/api/agent-conversations/v1/turns", &token, &reset).await?;
     assert_eq!(status, reqwest::StatusCode::ACCEPTED, "{reset_accepted}");
@@ -614,7 +740,7 @@ async fn parent() -> Result<()> {
     let (status, before_reset_view) = get(&client, &conversation_path, &token).await?;
     assert_eq!(status, reqwest::StatusCode::OK);
     assert!(before_reset_view["conversation"]["usage"].is_null(), "fresh session must reset usage to unavailable");
-    run_mediator(true).await?;
+    run_mediator().await?;
     let first_receipt: Value = client.get(format!("http://127.0.0.1:9091/control/v1/receipts/{}", accepted["taskId"].as_str().unwrap()))
         .bearer_auth(INVOCATION_SECRET).send().await?.json().await?;
     let continued_receipt: Value = client.get(format!("http://127.0.0.1:9091/control/v1/receipts/{}", continued["taskId"].as_str().unwrap()))
@@ -636,21 +762,27 @@ async fn parent() -> Result<()> {
     worker = spawn_worker(&client, "provider_denied").await?;
     let (status, denied_accepted) = post_json(&client, "/api/agent-conversations/v1/turns", &token, &denied).await?;
     assert_eq!(status, reqwest::StatusCode::ACCEPTED, "{denied_accepted}");
-    run_mediator(false).await?;
+    run_mediator().await?;
     let (_, denied_view) = get(&client, &format!("/api/agent-conversations/v1/rooms/{room}/tasks/{}", denied_accepted["taskId"].as_str().unwrap()), &token).await?;
     assert_eq!(denied_view["state"], "failed", "{denied_view}");
     assert!(denied_view["replyEventId"].is_null());
+    assert_eq!(denied_view["failure"]["code"], "execution_failed");
+    assert!(!denied_view.to_string().contains("synthetic provider denial"));
+    assert_eq!(worker_receipt(&client, denied_accepted["taskId"].as_str().unwrap()).await?["error"], "execution_failed");
+    println!("Task9 synthetic provider denial: receipt-correlated execution_failed, no fallback/reply");
     let records = native_records(&state().join("native-requests.jsonl"))?;
     let denied_turn = records.iter().rev().find(|r| r["request"]["method"] == "turn/start").unwrap();
     assert_eq!(denied_turn["request"]["params"]["model"], "gpt-6-sol");
-    assert_eq!(records.iter().filter(|r| r["request"]["method"] == "turn/start").count(), 4);
-    assert_eq!(events_after(&pool, room, 0).await?.into_iter().filter(|e| e.actor_id == CODEX_AGENT_ID).count(), 3);
+    assert_eq!(records.iter().filter(|r| r["request"]["method"] == "turn/start").count(), 5);
+    assert_eq!(events_after(&pool, room, 0).await?.into_iter().filter(|e| e.actor_id == CODEX_AGENT_ID).count(), 4);
     worker_boundary(&client, &pool, &issuer, &mut worker, "hold_send", None, false, false).await?;
     worker_boundary(&client, &pool, &issuer, &mut worker, "hold_thread_start", Some("reserved"), false, false).await?;
     worker_boundary(&client, &pool, &issuer, &mut worker, "hold_turn_start", Some("running"), true, false).await?;
     worker_boundary(&client, &pool, &issuer, &mut worker, "hold_after_turn_start", Some("running"), true, true).await?;
     mediator_boundary(&client, &pool, &issuer, &gate, GatePhase::BeforeCommit).await?;
     mediator_boundary(&client, &pool, &issuer, &gate, GatePhase::AfterCommit).await?;
+    rejected_completion_recovery(&client, &pool, &issuer, &gate, &mut worker).await?;
+    unavailable_runtime(&client, &pool, &issuer, &mut worker).await?;
     worker.kill().await?;
     worker.wait().await?;
     broker_task.abort();
@@ -658,8 +790,8 @@ async fn parent() -> Result<()> {
     pool.close().await;
     let all_native = native_records(&state().join("native-requests.jsonl"))?.iter()
         .filter(|r| r["request"]["method"] == "turn/start").count();
-    assert_eq!(all_native, 8);
-    println!("Task9 composed fake PASS: concurrent duplicate=one task, baseline/delta IDs, secret and room isolation, reset distinct thread/defaults, retained thread after restart, model/effort switch, latest usage, denied model no fallback, six crash/commit boundaries; native turns={all_native}");
+    assert_eq!(all_native, 11);
+    println!("Task9 composed fake PASS: concurrent duplicate=one task, baseline/delta IDs, secret and room isolation, reset distinct thread/defaults, retained thread after restart, model/effort switch, latest usage, denied model no fallback, six crash/commit boundaries; rejected-completion recovery; omitted shared settings; three safe failures; native turns={all_native}");
     Ok(())
 }
 #[tokio::main]
