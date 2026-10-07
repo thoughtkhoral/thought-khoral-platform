@@ -1,0 +1,131 @@
+# Approved local-only opt-in: use with compose.yaml after the packaging gate.
+services:
+  thought-khoral-agent-egress:
+    depends_on:
+      thought-khoral-codex-egress:
+        condition: service_healthy
+    environment:
+      THOUGHT_KHORAL_CODEX_ENABLED: "true"
+    networks:
+      - thought-khoral-agent-internal
+      - thought-khoral-codex-internal
+
+  thought-khoral-codex-egress:
+    container_name: thought-khoral-codex-egress
+    build:
+      context: ${THOUGHT_KHORAL_SOURCE_ROOT:-..}
+      dockerfile: thought-khoral-platform/containers/codex-provider-proxy.Containerfile
+    image: localhost/thought-khoral-codex-provider-proxy:dev
+    entrypoint: ["/bin/sh", "/opt/codex/codex-egress.sh"]
+    extra_hosts:
+      thought-khoral-codex-provider-proxy: "127.0.0.1"
+    user: "0:0"
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN]
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: [/tmp, /run]
+    networks:
+      thought-khoral-codex-internal:
+        aliases: [thought-khoral-codex-agent]
+      thought-khoral-codex-provider: {}
+    healthcheck:
+      test: ["CMD", "test", "-f", "/run/codex-policy-ready"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+
+  thought-khoral-codex-provider-proxy:
+    image: localhost/thought-khoral-codex-provider-proxy:dev
+    depends_on:
+      thought-khoral-codex-egress:
+        condition: service_healthy
+    network_mode: service:thought-khoral-codex-egress
+    pid: container:thought-khoral-codex-egress
+    user: "10004:10004"
+    cap_drop: [ALL]
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: [/tmp]
+    healthcheck:
+      test: ["CMD", "python3", "/opt/codex/codex-provider.py", "--health"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  thought-khoral-codex-agent:
+    image: ${THOUGHT_KHORAL_CODEX_IMAGE:?an immutable reviewed worker image is required}
+    entrypoint: ["/bin/bash", "/opt/platform/codex-start.sh"]
+    depends_on:
+      thought-khoral-codex-provider-proxy:
+        condition: service_healthy
+    network_mode: service:thought-khoral-codex-egress
+    pid: container:thought-khoral-codex-egress
+    environment:
+      THOUGHT_KHORAL_CODEX_ISOLATION_VERIFIED: "1"
+      THOUGHT_KHORAL_CODEX_IMAGE: ${THOUGHT_KHORAL_CODEX_IMAGE:?an immutable reviewed worker image is required}
+      THOUGHT_KHORAL_CODEX_PROVIDER_KEY_FILE: /run/secrets/codex-provider
+      THOUGHT_KHORAL_CODEX_INVOCATION_KEY_FILE: /run/secrets/codex-invocation
+      THOUGHT_KHORAL_CODEX_MODELS: ${THOUGHT_KHORAL_CODEX_MODELS:?explicit model allowlist is required}
+      THOUGHT_KHORAL_CODEX_ADMISSION_EXPIRES_AT: ${THOUGHT_KHORAL_CODEX_ADMISSION_EXPIRES_AT:?bounded admission expiry is required}
+    secrets: [codex-provider, codex-invocation]
+    volumes:
+      - ${THOUGHT_KHORAL_CODEX_STATE_ROOT:?owned state root is required}/native:/var/lib/thought-khoral-codex/native
+      - ${THOUGHT_KHORAL_CODEX_STATE_ROOT:?owned state root is required}/receipts:/var/lib/thought-khoral-codex/receipts
+      - ${THOUGHT_KHORAL_CODEX_STATE_ROOT:?owned state root is required}/admission:/run/codex-admission
+      - ${THOUGHT_KHORAL_PLATFORM_ROOT:-.}/scripts/codex-start.sh:/opt/platform/codex-start.sh:ro
+    user: "10003:10003"
+    cap_drop: [ALL]
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: [/tmp]
+    healthcheck:
+      test: ["CMD", "/bin/bash", "/opt/platform/codex-start.sh", "--health"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  thought-khoral-agent-gateway:
+    depends_on:
+      thought-khoral-codex-agent:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/opt/platform/codex-secrets.sh", "mediator"]
+    environment:
+      THOUGHT_KHORAL_CODEX_ENABLED: "true"
+      THOUGHT_KHORAL_CODEX_CATALOG_BRIDGE_BIND: "0.0.0.0:9092"
+      THOUGHT_KHORAL_CODEX_STATE_DIR: /var/lib/thought-khoral-mediator
+      THOUGHT_KHORAL_CODEX_MODEL_POLICY_JSON: ${THOUGHT_KHORAL_CODEX_MODEL_POLICY_JSON:?reviewed mediator model policy is required}
+      THOUGHT_KHORAL_CODEX_CATALOG_REVISION: catalog-1
+      THOUGHT_KHORAL_CODEX_GUIDANCE_REVISION: fixed-1
+    secrets: [codex-invocation, codex-catalog-bridge]
+    volumes:
+      - ${THOUGHT_KHORAL_CODEX_STATE_ROOT:?owned state root is required}/mediator:/var/lib/thought-khoral-mediator
+      - ${THOUGHT_KHORAL_PLATFORM_ROOT:-.}/scripts/codex-secrets.sh:/opt/platform/codex-secrets.sh:ro
+
+  thought-khoral-room-gateway:
+    entrypoint: ["/bin/sh", "/opt/platform/codex-secrets.sh", "broker"]
+    environment:
+      THOUGHT_KHORAL_CODEX_POLICY_JSON: ${THOUGHT_KHORAL_CODEX_POLICY_JSON:?reviewed broker policy is required}
+    secrets: [codex-catalog-bridge]
+    volumes:
+      - ${THOUGHT_KHORAL_PLATFORM_ROOT:-.}/scripts/codex-secrets.sh:/opt/platform/codex-secrets.sh:ro
+
+  thought-khoral-workspace-ui:
+    depends_on:
+      thought-khoral-codex-agent:
+        condition: service_healthy
+    volumes:
+      - ${THOUGHT_KHORAL_CODEX_STATE_ROOT:?owned state root is required}/admission:/usr/share/nginx/html/codex-admission:ro
+
+networks:
+  thought-khoral-codex-internal:
+    internal: true
+  thought-khoral-codex-provider: {}
+
+secrets:
+  codex-provider:
+    file: ${THOUGHT_KHORAL_CODEX_PROVIDER_KEY_FILE:?provider key file is required}
+  codex-invocation:
+    file: ${THOUGHT_KHORAL_CODEX_INVOCATION_KEY_FILE:?distinct invocation key file is required}
+  codex-catalog-bridge:
+    file: ${THOUGHT_KHORAL_CODEX_CATALOG_BRIDGE_KEY_FILE:?distinct catalog bridge key file is required}

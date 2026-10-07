@@ -7,7 +7,7 @@ including this milestone-one specification and the coordinated implementation
 plan. Accepted contribution: [issue 1](https://github.com/thoughtkhoral/thought-khoral-platform/issues/1).
 Implementation follows the [plan](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/codex-room-conversations-implementation-plan.md) and its dependency gates.
 Release/tag publication, provider use and service activation require their
-separate later authorization. No completed runtime or live verification is claimed.
+separate later authorization. Local implementation and synthetic verification are recorded below; no live provider verification is claimed.
 
 ## Governing sources
 
@@ -23,7 +23,8 @@ UID/GID 10003, read-only root filesystem, dropped capabilities, no published age
 port, and dedicated persistent /var/lib/thought-khoral-codex state with restrictive
 ownership. Mount provider-key and invocation-key files separately under /run/secrets;
 only the worker receives the provider key. Native CODEX_HOME and SQLite receipts
-occupy separate subdirectories; /workspace contains fixed instructions only.
+occupy separate subdirectories; the worker-owned fixed instruction directory is
+/opt/thought-khoral-codex/workspace.
 Add a dedicated restricted provider proxy; the worker can reach only that proxy,
 and the proxy permits CONNECT api.openai.com:443 with valid upstream TLS, no
 arbitrary hosts/ports/IP literals, and no redirects to other origins. It receives
@@ -45,94 +46,92 @@ fake only the provider/app-server boundary where a live dependency is unnecessar
 Publication/runtime execution requires accepted issue links and written review.
 Do not claim live model, history, sandbox, or egress coverage from schema tests.
 
-## Task 8 local packaging checkpoint — 2026-10-07
+## Task 8 implementation refinements (2026-10-07)
 
-Platform `9626bc46f8b74c2a58b2578c4f744996f3d41317` on `codex-opt-in-platform` and worker `d40e4a8cd5efc77c7161742aec7ade289efb357a` on
-`codex-worker-tool-policy` passed independent task review. The coordinated plan
-records immutable image identities and synthetic kernel/TLS/startup/native-tool
-capture evidence. Feature flags alone were insufficient for initial tool
-restriction; the corrected pinned worker binds sanitized catalog, controls and
-actual CLI evidence. Linux ARM64 is verified locally; x86_64 remains blocked on
-equivalent capture. Cold bootstrap admission expires within five seconds after
-health renewal stops; no instantaneous withdrawal from already-open UI is claimed.
-Original checkouts retain their runtimes/scaffold. No provider inference,
-activation, merge or publication occurred. Task 9 retains end-to-end integration
-and separately authorized live verification; directory guidance remains later.
+The reviewed local packaging target is Linux aarch64. The worker-owned image
+binds Codex CLI 0.160.0 to the exact sanitized upstream bundled catalog,
+explicit tool-selection controls, and captured empty-tool request evidence.
+`--verify-package` must validate those artifacts and the CLI binary hash before
+printing the tool-policy marker. Native model/list remains authoritative, with
+execution restricted to reviewed catalog and model/effort capture cases.
 
-## Task 9 synthetic verification and correction checkpoint — 2026-10-07
+A dedicated owner holds NET_ADMIN and the Codex network/PID namespace. Worker
+UID10003 and proxy UID10004 have no capabilities. Owner PID1 exit terminates its
+dependents through Linux PID namespace semantics. IPv4/IPv6 kernel rules reject
+worker direct traffic and DNS. The proxy accepts only the exact
+api.openai.com:443 authority, checks the selected public unicast IP with TLS,
+and preserves worker end-to-end certificate verification on the actual tunnel.
+Encrypted redirects cannot be inspected; attempts to use another origin are
+blocked by the CONNECT/network boundary. The existing mediator namespace allows
+only UID10001's admitted 9091 calls and replies to broker-initiated 9092 calls;
+UID10002 retains the deterministic boundary.
 
-The following defaults-discovery amendment status supersedes this pre-amendment F1/default-discovery disposition; Task 9 remains open for release gates.
+The opt-in host preflight validates the immutable image reference and three
+bounded, distinct credential files before recipient mounts are assembled. The
+provider, worker invocation, and catalog bridge values never share recipient
+scope. Startup validates native/receipt ownership and rejects imported native
+configuration and authentication files. Remote source builds preserve the
+four-source default and require an explicit fifth immutable worker source when
+opted in; the independently built worker is passed to Compose by image ID.
 
-Provider-free checkpoint only; Task 9 and the milestone remain open.
+Trusted worker health renews a closed host admission declaration in an envelope
+that expires within five seconds. Cold UI bootstrap checks freshness and the
+exact declaration. Abrupt namespace exit may leave the file; it cannot enable a
+new bootstrap after expiry. Startup removes stale admission before checks.
+An already-open UI retains the declaration and relies on the broker's current
+admission/availability checks. No instantaneous UI withdrawal is claimed.
 
-Task-scoped verification review: Approved. Broad implementation review: Partial
-spec compliance; quality Needs follow-up. B1–B3 (pending-ack recovery, omitted
-shared settings and receipt-correlated safe failures) are addressed. B4 is
-partial: explicit initial/reset selection works for full-capability admission,
-but automatic server-default display requires an approved interface amendment.
-F1: unresolved Important reasoning-only UI deadlock. Optional capabilities are
-independent; an effort-only admission cannot establish the guard-required model
-through its hidden selector. This prevents initial/reset invocation and blocks
-whole-milestone/merge readiness. No second broad fix wave or waiver is implied.
+See the derived [local operator and verification guide](../../../docs/codex-local.md)
+for precise evidence scope. Synthetic kernel, TLS, package, and CLI captures do
+not establish real provider access, billing, or live room conversation behavior.
 
-| Owner | Final reviewed local revision |
-|---|---|
-| contracts | `85baf86e574276fcd036e53e23641af6aad602f9` |
-| broker | `fd05cb48b8508e7939f9cdf9df275742a06fc4f8` |
-| mediator | `6c3d96b4763871b9addc9bc7223e71ee7d38abd9` |
-| worker | `b0d43ec2b5b0c8da035d4ccff754545132b978d4` |
-| ui | `e51d67e9e1a986601df6b5e1acf68aaf7ae0870d` |
-| platform | `637a69279f0fe5019560b1e54d28f48c1c715897` |
 
-All six reviewed worktrees were clean when this checkpoint was prepared.
-Runtime is committed only on isolated local branches; originals retain their
-runtime/scaffold and unrelated edits. Contracts v1.0.0 and dependency lockfiles
-remain unchanged.
+## Task 9 verification refinements (2026-10-07)
 
-Controller final verification on platform revision above: `node
-scripts/smoke-codex-conversation.mjs --fake` (session85023) exit0, six original
-crash/commit boundaries, 11 fake native turns, exact baseline/delta/source IDs,
-targeted/cross-room exclusion, duplicate=one logical turn, worker restart and
-fresh reset, shared omitted settings, rejected-completion recovery and exact
-execution_failed/session_unavailable/runtime_unavailable projections. `node
---test scripts/tests/codex-conversation-smoke.test.mjs` (session23304) exit0,
-13 passed, zero failed. This is synthetic native/identity/private-DNS adapter
-coverage, not whole packaged Compose, real Keycloak/browser or provider proof.
+The platform-owned composed fixture decodes both initial and continuation native
+inputs and compares their complete context to the broker's frozen packet. The
+continuation has exactly the intervening public event and current trigger,
+with one accepted-reply binding naming its event, source task, sequence,
+generation, and text digest; prior history and assistant reply text cannot be
+reinjected. A fake native protocol marker does not establish persistence:
+after-turn-binding process loss waits for the actual SQLite running/thread/turn
+receipt with a bounded deadline.
 
-Inspected owner logs and independent review record broker150 passed + one
-pre-existing ignored live test; mediator65 passed, zero failed/ignored (correcting
-the earlier reported68); worker46; UI121 + pin/tamper checks and production
-build. Owner fixture tests3, actual assertion-failure/SIGTERM/SIGINT cleanup3,
-package/startup checks10 passed. Earlier contracts/regression/legal/pin evidence
-is retained with original attribution, not presented as rerun here.
+Each run owns a detached fixture process group and registered native groups.
+Boundary guards terminate held native groups even when assertions fail; the
+outer runner terminates and waits for its own descendants on success, failure,
+SIGINT, or SIGTERM before removing state. It checks container removal and
+surfaces cleanup errors while retaining diagnostic state. No cleanup searches
+or kills resources from another fixture run. Negative cleanup verification
+uses held native subprocesses and descendants, assertion failure, and both
+outer signals. The synthetic denied-model failure must preserve the receipt-correlated safe
+`execution_failed` code; bounded unexpected child stderr fails the check.
 
-New ARM64 worker image:
-`sha256:2d8bfade27802f910cf68e832722c93b4a2acc2addb825711e1223617a4cd385`.
-Compiled runtime revision `b418a76e0e7ca047b5fe995eb17519aced369a06`; worker
-head above adds evidence documentation. Immutable image readiness checks used
-network-none/read-only/cap-drop-all, both admission markers; default invocation
-refused as expected. Actual native 44-setting/eight-model/resume/six unsolicited
-tool refusal evidence remains attributed to its earlier source/image, not this
-new image. CLI/catalog/control hashes are unchanged. x86_64 native admission and
-Rust1.85 minimum-version checks remain unrun.
+Live packet, credential, and new evidence paths are canonicalized through the
+nearest existing ancestor and must lie outside every Git worktree, including
+linked worktrees and symlinked parents. Existing packet/credential files must
+be owner-only regular files; the evidence destination is preflighted before
+container inspection and reserved privately before broker requests. A failed
+alternate setting records only the broker's known safe failure code and fails
+the live gate, retaining partial evidence. The pinned error vocabulary has no
+account-specific model denial code, so account availability stays unclassified
+for those failures. No live execution or provider-access evidence follows from
+these guard and synthetic fixture tests.
 
-Default discovery: pending specification approval. The local proposed How is
-`thought-khoral-codex-agent/.ai/specs/how/default-settings-discovery-proposal.md`.
-It proposes a read-only authenticated defaults query in a new immutable v1.1.0
-artifact and independent mixed-capability controls, covering absent conversation
-and explicit New/reset. It authorizes no runtime or published contract changes.
-Live provider verification: pending. Account/model availability, actual native
-history, live tool/egress/key isolation, packaged deployment/private DNS and real
-browser/identity evidence remain separately gated. No merge, push, publication,
-service activation or provider inference occurred.
 
-Independent review artifacts are retained outside Git at
-`/private/tmp/codex-conversation-task9/final-fix-review.md`,
-`final-implementation-review.md`, and `task9-fix-review.md`; owner evidence at
-`/private/tmp/Task9-final-fix-evidence/`. Final root/documentation/source-reference
-and identity gate results will be recorded in the controller checkpoint after
-these source-derived record updates. The aggregate release checklist remains
-unchecked; passing synthetic checks do not resolve F1 or default discovery.
+## Final composed recovery regressions
+
+Verification also covers completed-but-unacknowledged worker state after an
+authenticated broker completion is rejected at its real deadline. Quarantine
+preserves the immutable receipt; explicit fresh New must use a strictly newer
+generation and a distinct native thread, including after restart. Stale
+continuation and active-task replacement remain refused; no old reply is inserted.
+An omitted-settings continuation by another human after restart must preserve
+the accepted shared pair through native execution; a fresh New still uses the
+deployment defaults. Exact broker failure projections distinguish synthetic
+provider denial, missing native history, and unavailable native runtime using
+matching authenticated failed receipts. These fixtures retain the published
+profile and use only synthetic private state.
 
 ## Approved defaults-discovery amendment — 2026-10-07
 
@@ -168,79 +167,52 @@ isolated consumers may pin a reproducible local candidate from an exact committe
 contracts revision, verified archive and per-file SHA-256 values, clearly marked
 unreleased. This exception is only for this amendment's local pre-publication
 development and synthetic testing. Published v1.0 provenance/bytes remain intact.
-No release publication, shipped interoperability, merge, push, provider use or
-service activation is authorized. Whole milestone/Task9 acceptance remains open.
+This local merge does not authorize release publication, shipped interoperability,
+push, provider use or service activation. Whole milestone/Task9 acceptance remains open.
 
-## Defaults discovery local synthetic checkpoint — 2026-10-07
 
-All four defaults-amendment tasks passed their independent reviews. The final
-whole-branch review passed. F1 (initial/New reasoning-only settings deadlock) and
-visible defaults discovery are accepted for this local synthetic candidate.
+## Defaults candidate verification evidence — 2026-10-07
 
-| Source | Exact local revision | Retained worktree |
-| --- | --- | --- |
-| contracts | `1ea828f28725ddaaefa21d083473f9abbd777975` | `/private/tmp/codex-conversation-defaults/contracts` |
-| broker | `2e7d23b467c572819f498c3b9bf14d74a62dc821` | `/private/tmp/codex-conversation-defaults/room-gateway` |
-| mediator | `6c3d96b4763871b9addc9bc7223e71ee7d38abd9` | `/private/tmp/codex-conversation-final-fix/agent-gateway` |
-| worker | `b0d43ec2b5b0c8da035d4ccff754545132b978d4` | `/private/tmp/codex-conversation-final-fix/worker` |
-| ui | `79e5e7310a450efea561548cd87871446c1939aa` | `/private/tmp/codex-conversation-defaults/workspace-ui` |
-| platform | `2d856773078a7caa542d719e539b55a5ab2dafaa` | `/private/tmp/codex-conversation-defaults/platform` |
+Task 4 implements the [approved amendment plan](default-settings-discovery-implementation-plan.md)
+in an isolated platform verification branch. Exact sources and artifact anchors
+are recorded in `scripts/fixtures/codex-conversation/defaults-candidate-pins.json`.
+The candidate retains the published v1 profile and immutable v1.0 vendor bytes;
+its additive defaults route is local and unreleased. Mediator and worker remain
+at their earlier reviewed v1-compatible revisions.
 
-The composed run was executed at `f9afeb20b746200daa9cdef0406c03f88a422b68`.
-The subsequent path-provenance correction was tested and scoped-reviewed at
-`220f6e0c74a29c000d7de81c0cb77823de0bd15c`;
-the final platform revision above adds completion metadata only. The original
-repositories retain their runtime; local implementation branches remain unmerged.
+Actual synthetic acceptance covers 12 rendered RoomPage HTTP lifecycle cases
+(four independent capability combinations × initial/restored/New), read-only
+validated defaults queries, three display/send mutations and immutable replay
+while defaults/catalog access is unavailable. Accepted UI settings, the frozen
+broker packet and task-correlated native requests agree. The original 11 native
+turns and six crash/commit boundaries remain separate from 13 candidate native
+turns. A fresh New baseline contains prior public room replies in its new thread;
+continuation keeps the existing strict native-reply substitution assertions.
 
-The unreleased candidate contract source is
-`1ea828f28725ddaaefa21d083473f9abbd777975`, proposed release
-`thought-khoral-agent-conversation-v1.1.0`. Its archive SHA-256 is
-`fab59a486f6498b843467202debcb0768403bd57ba7dda41be2a01e5f23fdda8`
-and externally anchored lock SHA-256 is
-`7914d32eae2487879a68405b5095a6b9aa91355f87529c43f4055844821902a9`.
-All 156 candidate payload files match in broker/UI; published v1.0 bytes remain
-unchanged. The profile and API namespace stay v1. This is not a published release.
+The display/send handshake is test-only. Safe stale/removed rejections retain
+the prompt and explicit Refresh settings; an attempted repeated Send performs
+no additional conversation HTTP submission or ordinary chat send. The shared
+composer button need not be visually disabled. No automatic alternate pair is
+shown or sent. Synthetic evidence does not establish browser, packaged-stack,
+real Keycloak or live-provider acceptance.
 
-Evidence: retained 125 contract fixtures plus 16 additive cases and 6 candidate
-integrity tests; broker serial suite 158 passed with 1 existing live-only test
-ignored; UI full suite 190 passed with 1 intentional composed skip, followed by
-scoped harness/TypeScript checks; 26 source-pin and 13 retained runner guards;
-5 fixture unit tests; 3 actual failure/SIGTERM/SIGINT cleanup cases. The composed
-candidate passed 12 capability/lifecycle cases, 3 display/send mutation cases,
-15 actual HTTP UI children with 90 test passes, and 24 synthetic native turns
-(11 retained baseline plus 13 added). Stale/removed pairs allocate no task/event
-or native turn, retain the prompt and require explicit Refresh. Default-only
-changes preserve the displayed explicit pair; unavailable replay is immutable.
-Paused-publisher regressions verified RED before and GREEN after atomic exclusive
-handshake publication. Owned processes, containers and staging files were cleaned.
+Local synthetic verification is recorded for independent specification and code
+review of the exact platform commit and the scoped UI harness range
+`a6aea070199e1eb2e0bd059f7cf0899131a9f092..79e5e7310a450efea561548cd87871446c1939aa`.
+The task reviews and final whole-branch review passed. F1 and defaults discovery
+are accepted for this local synthetic candidate; publication, packaged deployment,
+live-provider use and activation retain their separate gates.
 
-The current composed state is `/var/folders/70/5kxy5kys3bj0252chp3ck8900000gn/T/Task9-codex-conversation-j9py6w`. Full provenance,
-task/thread bindings, raw log references, limitations and review reports remain in
-`/private/tmp/codex-conversation-defaults/defaults-reviewed-checkpoint.json` and
-`/private/tmp/codex-conversation-defaults/task-4-logs/`. Root hierarchy/reference/
-identity, scaffold documentation and whitespace results are recorded separately
-in `/private/tmp/codex-conversation-defaults/final-gates.json` after synchronization.
-The old parallel broker fixture port collision and Vite chunk advisory are
-retained limitations; no passing parallel broker-suite claim is made.
+## Local main integration checkpoint — 2026-10-07
 
-Publication: pending
-
-Packaged-stack verification: pending
-
-Live provider verification: pending
-
-The composed gate uses jsdom, a synthetic room socket, actual conversation HTTP
-and storage, and a fake native executable. It does not establish packaged Compose,
-real browser/Keycloak, provider, architecture-minimum or new-image acceptance.
-Task 9 and milestone aggregate gates remain open. Specification/memory-guided
-working directories remain the separately scoped future extension.
-
-## Defaults-discovery amendment status — 2026-10-07
-
-The approved defaults amendment and F1 correction were independently reviewed
-on the local platform candidate branch `codex-defaults-verification` at
-`2d856773078a7caa542d719e539b55a5ab2dafaa`. It records the composed synthetic
-candidate run and exact source pins; it is not a packaged Compose or live
-provider result. The platform default branch retains its prior runtime.
-Publication, packaged-stack and separately authorized live-provider gates
-remain pending. See the [coordinated checkpoint](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/codex-room-conversations-implementation-plan.md).
+The reviewed platform candidate at source commit
+`2d856773078a7caa542d719e539b55a5ab2dafaa` is integrated into this repository's
+local `main` under the user's explicit merge authorization. The v1.1 contract
+remains an unreleased local candidate. Fresh candidate pin/safety verification
+passed all 26 tests with `node --test scripts/tests/codex-defaults-pins.test.mjs`.
+The provider-free composed run passed with
+`node scripts/smoke-codex-conversation.mjs --fake --defaults-candidate`, including
+the rendered defaults matrix and recovery checks; its temporary PostgreSQL
+container and owned fixture processes were cleaned. This does not establish
+packaged deployment, real browser/identity, or live-provider acceptance, and
+does not authorize publication, activation, provider use, or push.

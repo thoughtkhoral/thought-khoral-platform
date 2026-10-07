@@ -12,6 +12,7 @@ FROM docker.io/nginxinc/nginx-unprivileged:1.29.2-alpine
 USER 0
 COPY --from=build /source/dist/ /usr/share/nginx/html/
 COPY thought-khoral-platform/ui/nginx.conf /etc/nginx/conf.d/default.conf
+COPY thought-khoral-platform/ui/codex-admission.js /usr/share/nginx/html/codex-admission.js
 COPY thought-khoral-platform/ui/thought-khoral-bootstrap.js /usr/share/nginx/html/thought-khoral-bootstrap.js
 RUN app_module="$(sed -n 's/.*src="\([^\"]*\/assets\/index-[^\"]*\.js\)".*/\1/p' /usr/share/nginx/html/index.html)" \
     && test -n "$app_module" \

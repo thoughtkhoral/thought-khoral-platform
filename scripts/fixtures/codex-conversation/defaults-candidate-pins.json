@@ -1,0 +1,29 @@
+{
+  "status": "unreleased-local-candidate",
+  "contractCommit": "1ea828f28725ddaaefa21d083473f9abbd777975",
+  "archiveSha256": "fab59a486f6498b843467202debcb0768403bd57ba7dda41be2a01e5f23fdda8",
+  "lockSha256": "7914d32eae2487879a68405b5095a6b9aa91355f87529c43f4055844821902a9",
+  "artifactPath": "/private/tmp/codex-conversation-defaults/artifacts/1ea828f28725ddaaefa21d083473f9abbd777975",
+  "sources": {
+    "contracts": {
+      "path": "/private/tmp/codex-conversation-defaults/contracts",
+      "head": "1ea828f28725ddaaefa21d083473f9abbd777975"
+    },
+    "broker": {
+      "path": "/private/tmp/codex-conversation-defaults/room-gateway",
+      "head": "2e7d23b467c572819f498c3b9bf14d74a62dc821"
+    },
+    "ui": {
+      "path": "/private/tmp/codex-conversation-defaults/workspace-ui",
+      "head": "79e5e7310a450efea561548cd87871446c1939aa"
+    },
+    "mediator": {
+      "path": "/private/tmp/codex-conversation-final-fix/agent-gateway",
+      "head": "6c3d96b4763871b9addc9bc7223e71ee7d38abd9"
+    },
+    "worker": {
+      "path": "/private/tmp/codex-conversation-final-fix/worker",
+      "head": "b0d43ec2b5b0c8da035d4ccff754545132b978d4"
+    }
+  }
+}

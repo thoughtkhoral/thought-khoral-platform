@@ -47,3 +47,11 @@ Implementation and synthetic verification follow the amendment plan; publication
 provider use, activation, merge and push retain their separate gates.
 
 Approved defaults extension execution plan: [four coordinated local tasks](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/codex-default-settings-implementation-plan.md). The prior Task9 checkpoint remains open until amendment acceptance and its separate packaged/live gates.
+
+## Local main integration checkpoint — 2026-10-07
+
+After explicit user authorization, the reviewed platform source at
+`2d856773078a7caa542d719e539b55a5ab2dafaa` was merged into local `main`.
+The v1.1 contract remains unreleased. The owning How records the candidate pin
+checks and provider-free composed smoke. Publication, deployment activation,
+provider use, and push remain separate gates.

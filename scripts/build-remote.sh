@@ -5,10 +5,12 @@ gateway_repo='https://github.com/thoughtkhoral/thought-khoral-room-gateway.git'
 memory_engine_repo='https://github.com/thoughtkhoral/thought-khoral-memory-engine.git'
 agent_gateway_repo='https://github.com/thoughtkhoral/thought-khoral-agent-gateway.git'
 ui_repo='https://github.com/thoughtkhoral/thought-khoral-workspace-ui.git'
+codex_repo='https://github.com/thoughtkhoral/thought-khoral-codex-agent.git'
 platform_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
 usage() {
   printf 'Usage: %s <gateway-ref> <memory-engine-ref> <agent-gateway-ref> <ui-ref>\n' "$0"
+  printf '       %s --codex <gateway-ref> <memory-engine-ref> <agent-gateway-ref> <ui-ref> <codex-ref>\n' "$0"
   printf '\nBuilds and starts the platform from pinned GitHub component revisions.\n'
   printf 'Refs may be release tags or immutable commit IDs.\n'
 }
@@ -23,7 +25,14 @@ if [ "${1:-}" = '--help' ] || [ "${1:-}" = '-h' ]; then
   exit 0
 fi
 
-[ "$#" -eq 4 ] || {
+codex_enabled=false
+expected=4
+if [ "${1:-}" = --codex ]; then
+  codex_enabled=true
+  expected=5
+  shift
+fi
+[ "$#" -eq "$expected" ] || {
   usage >&2
   exit 2
 }
@@ -32,12 +41,17 @@ gateway_ref=$1
 memory_engine_ref=$2
 agent_gateway_ref=$3
 ui_ref=$4
+codex_ref=${5:-}
 
 for ref do
   case "$ref" in
     ''|-*) fail 'component refs must be non-empty and must not begin with -' ;;
   esac
 done
+
+if [ "$codex_enabled" = true ]; then
+  python3 "$platform_dir/scripts/check-codex-inputs.py" --source-build
+fi
 
 command -v git >/dev/null 2>&1 || fail 'git is required'
 command -v podman-compose >/dev/null 2>&1 || fail 'podman-compose is required'
@@ -96,6 +110,13 @@ clone_at_ref "$agent_gateway_repo" \
 clone_at_ref "$ui_repo" \
   "$context_root/thought-khoral-workspace-ui" "$ui_ref"
 
+if [ "$codex_enabled" = true ]; then
+  clone_at_ref "$codex_repo" "$context_root/thought-khoral-codex-agent" "$codex_ref"
+  [ -f "$context_root/thought-khoral-codex-agent/Cargo.toml" ] && \
+  [ -f "$context_root/thought-khoral-codex-agent/Containerfile" ] || \
+    fail 'missing pinned Codex worker source or Containerfile'
+fi
+
 for rust_project in thought-khoral-room-gateway thought-khoral-memory-engine thought-khoral-agent-gateway; do
   [ -f "$context_root/$rust_project/Cargo.toml" ] || \
     fail "missing $rust_project/Cargo.toml in pinned source"
@@ -104,8 +125,19 @@ done
   fail 'missing thought-khoral-workspace-ui/package.json in pinned source'
 
 export THOUGHT_KHORAL_SOURCE_ROOT=$context_root
-podman-compose \
-  -f "$context_root/thought-khoral-platform/compose.yaml" \
-  up --build -d
+export THOUGHT_KHORAL_PLATFORM_ROOT=$platform_dir
+if [ "$codex_enabled" = true ]; then
+  # Build the independently owned worker Containerfile, then compose by image ID.
+  podman build --iidfile "$context_root/codex-image-id" \
+    --file "$context_root/thought-khoral-codex-agent/Containerfile" \
+    "$context_root/thought-khoral-codex-agent"
+  THOUGHT_KHORAL_CODEX_IMAGE=$(cat "$context_root/codex-image-id")
+  printf '%s\n' "$THOUGHT_KHORAL_CODEX_IMAGE" | grep -Eq '^sha256:[0-9a-f]{64}$' || fail 'worker image ID is not immutable'
+  export THOUGHT_KHORAL_CODEX_IMAGE
+  podman-compose -f "$context_root/thought-khoral-platform/compose.yaml" \
+    -f "$context_root/thought-khoral-platform/compose.codex.yaml" up --build -d
+else
+  podman-compose -f "$context_root/thought-khoral-platform/compose.yaml" up --build -d
+fi
 
 printf 'build-remote: platform started from pinned GitHub sources\n'
