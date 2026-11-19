@@ -7,6 +7,17 @@ The exact profile is `thought-khoral.agent-conversation.v1` from contracts tag
 `thought-khoral-agent-conversation-v1.0.0` (`85baf86e574276fcd036e53e23641af6aad602f9`).
 This guide is derived verification procedure; it does not change those specifications.
 
+## Current evidence boundary — 2026-11-19
+
+The [owning maintenance checkpoint](../.ai/specs/how/codex-local-service.md#current-maintenance-and-verification-scope--2026-11-19)
+records the published platform build-input correction, passing deterministic
+eight-service smoke and separate native Linux worker acceptance. The commands
+and exact source tables below retain their reviewed synthetic fixture pins;
+they are not updated to later `main` heads without a new acceptance run.
+Task 9 opt-in packaged room-stack, rendered-browser/Keycloak and live-provider
+verification remain open, along with v1.1 contract, image and release publication.
+Local containers remain stopped and the external database volume preserved.
+
 ## Provider-free composed smoke
 
 From this platform checkout, with Podman, Node, Cargo, Python 3, the local

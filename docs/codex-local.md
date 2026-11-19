@@ -9,9 +9,12 @@ no Codex settings. `compose.codex.yaml` is an explicit additional file. It adds 
 separate Codex network/PID owner, restricted proxy, and independent worker image.
 The base Kubernetes manifests do not include Codex.
 
-The reviewed local packaging architecture is Linux aarch64. The proxy dependency
-lock and worker native tool-capture evidence must be reviewed separately before
-another architecture can be admitted.
+The original Task 8 platform/proxy composition evidence targets Linux aarch64.
+The worker's later final-lock native AMD64/ARM64 tests and package/tool-policy
+recaptures passed separately; see the [current owning checkpoint](../.ai/specs/how/codex-local-service.md#current-maintenance-and-verification-scope--2026-11-19).
+Those results close worker-native gates for the tested revision. They do not
+establish another architecture's platform/proxy composition or complete Task 9
+opt-in room-stack, rendered-browser/Keycloak, live-provider or release acceptance.
 
 The original Task 6 image does **not** pass this packaging gate. Version-only
 verification is insufficient: `--verify-package` must validate the corrected

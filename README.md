@@ -39,6 +39,16 @@ The stack uses the `thought-khoral-network` network. Its logical
 the pre-migration external volume `n2n_postgres-data`, so the identity rename
 does not abandon persisted PostgreSQL and Keycloak state.
 
+## Verified maintenance checkpoint — 2026-11-19
+
+The [approved build-input correction](.ai/specs/how/package-build-inputs-proposal.md)
+is pushed at `74ac640`. All three corrected image builds and the default
+eight-service smoke passed at the recorded source inputs. The containers were
+subsequently stopped/removed and the external database volume preserved.
+This deterministic HTTP/WebSocket smoke does not close Codex Task 9 opt-in
+packaged-stack, rendered-browser or live-provider acceptance. See the
+[opt-in Codex guide](docs/codex-local.md) for its separate evidence and gates.
+
 ## Prerequisites
 
 - A running rootless Podman machine
