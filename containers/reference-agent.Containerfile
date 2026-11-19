@@ -4,6 +4,7 @@ WORKDIR /source
 COPY thought-khoral-agent-gateway/Cargo.toml thought-khoral-agent-gateway/Cargo.lock ./
 COPY thought-khoral-agent-gateway/src/ src/
 COPY thought-khoral-agent-gateway/vendor/ vendor/
+COPY thought-khoral-agent-gateway/contracts/ contracts/
 RUN cargo build --locked --release --features reference-agent-server --bin thought-khoral-reference-agent
 
 FROM docker.io/library/debian:bookworm-slim

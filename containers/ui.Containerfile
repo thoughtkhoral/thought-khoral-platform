@@ -5,6 +5,8 @@ COPY thought-khoral-workspace-ui/package.json thought-khoral-workspace-ui/packag
 RUN npm ci
 COPY thought-khoral-workspace-ui/index.html thought-khoral-workspace-ui/tsconfig.json thought-khoral-workspace-ui/vite.config.ts ./
 COPY thought-khoral-workspace-ui/src/ src/
+COPY thought-khoral-workspace-ui/contracts/ contracts/
+COPY thought-khoral-workspace-ui/scripts/ scripts/
 RUN npm run build
 
 FROM docker.io/nginxinc/nginx-unprivileged:1.29.2-alpine
