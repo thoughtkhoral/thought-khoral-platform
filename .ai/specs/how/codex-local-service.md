@@ -224,3 +224,23 @@ The reviewed opt-in platform candidate is pushed to GitHub `main` in
 provider-free composed smoke passed. Packaged deployment and separately
 authorized live-provider verification remain open; production readiness is not
 claimed.
+
+## Current maintenance and verification scope — 2026-11-19
+
+The [accepted build-input correction](package-build-inputs-proposal.md) is
+published at platform `74ac640`. Its three corrected image builds and passing
+default eight-service smoke cover the deterministic stack only. The containers
+were stopped/removed after verification and the external database volume retained.
+
+The worker's [accepted Linux verification How](https://github.com/thoughtkhoral/thought-khoral-codex-agent/blob/main/.ai/specs/how/linux-worker-acceptance.md)
+and [durable evidence](https://github.com/thoughtkhoral/thought-khoral-codex-agent/blob/main/docs/evidence/linux-worker-acceptance-44599536091.json)
+record native run `44599536091` at worker `9bcdbde`: four AMD64/ARM64 Rust
+1.85.0/1.93.1 cells passed 46 tests each and both final-lock package/capture jobs
+passed exact native tool-policy recaptures. Evidence commit `8d233e4` is pushed.
+This closes the tested worker-native gates; it does not extend the original
+Task 8 platform/proxy composition evidence to another architecture.
+
+Task 9 opt-in packaged room-stack, rendered-browser/Keycloak and separately
+authorized live-provider verification remain open, as do v1.1 contract
+publication, image publication and production/release acceptance. Earlier
+local-only, unmerged and open-native statements are dated historical snapshots.

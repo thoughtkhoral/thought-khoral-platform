@@ -6,6 +6,18 @@ See the [root specification index](https://github.com/thoughtkhoral/thought-khor
 
 For the coordinated Codex conversation status across all projects, see the [shared status guide](https://github.com/thoughtkhoral/thought-khoral/blob/main/docs/codex-conversation-status.md).
 
+## Current verification scope — 2026-11-19
+
+See the [owning current checkpoint](how/codex-local-service.md#current-maintenance-and-verification-scope--2026-11-19) for source publication and
+verification attribution. The integrated Codex candidate is pushed on `main`;
+F1/defaults discovery are accepted within their composed synthetic scope.
+Final-lock native Linux worker acceptance is recorded in the coordinated plan,
+but Task 9 opt-in packaged room-stack, rendered-browser/Keycloak, live-provider,
+v1.1 contract publication and production/release gates remain open.
+
+The dated entries below preserve the sequence of local review, integration and
+publication. Local-only/unmerged wording applies to those historical checkpoints.
+
 ## Local areas
 
 - [What: local MVP platform](what/local-mvp.md)
@@ -59,7 +71,7 @@ The v1.1 contract remains unreleased. The owning How records the candidate pin
 checks and provider-free composed smoke. Publication, deployment activation,
 provider use, and push remain separate gates.
 
-## Current POC publication checkpoint — 2026-10-07
+## POC publication checkpoint — 2026-10-07
 
 The reviewed opt-in Codex platform candidate is pushed to GitHub `main` at
 `251f10f8ad975b6035640adc4a03bbdd34ef4e36`. Candidate pin/safety tests and the
@@ -75,7 +87,8 @@ reference-agent build stages and existing contracts/scripts to the UI stage.
 It implements the existing [local MVP composition/start criteria](what/local-mvp.md)
 without changing product behavior, protocols, identity, isolation, or storage.
 The main [implementation design](how/implementation.md) incorporates this
-amendment. Publication remains separate from these approved local changes.
+amendment. The correction was subsequently pushed at `74ac640`; its owning
+How records the publication checkpoint separately from the earlier local evidence.
 
 All three image builds and the default deterministic-stack smoke passed.
 The containers were subsequently stopped and removed at the user's request;

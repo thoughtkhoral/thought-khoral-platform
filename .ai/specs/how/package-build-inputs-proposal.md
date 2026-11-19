@@ -76,7 +76,7 @@ acceptance retain their existing gates.
 
 ## Implementation evidence — 2026-11-19
 
-The accepted `COPY` additions are applied locally on platform base
+At the implementation checkpoint, the accepted `COPY` additions were applied on platform base
 `f07065c4a17636871b3b8f01d7642b6cd0554db3`, consuming agent-gateway source
 `6bfdd4420c72fa7eb25d30d48f06a8a7a0bd0ec1` and UI source
 `531cd912b5e5eb9ffd5ae175cbf8498d9c757192`. The actual sequential builds
@@ -134,3 +134,14 @@ The containers were subsequently stopped and removed at the maintainer's
 explicit cleanup request, without deleting the external PostgreSQL volume.
 Codex was never activated. All prior failure logs remain available. The root
 identity gate passed again after the final documentation correction.
+
+## Published maintenance checkpoint — 2026-11-19
+
+The approved build-input correction was subsequently committed as `74ac640`
+and pushed to GitHub `main` under the maintainer's separate authorization.
+The three image IDs and passing default eight-service smoke above remain
+attributed to their tested source inputs; this source publication is not a
+new image build or a rerun against the worker's later final lock. Local
+containers remain stopped/removed and the external database volume is preserved.
+Opt-in Codex Task 9, rendered-browser, live-provider, contract publication and
+production/release acceptance remain open.
