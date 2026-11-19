@@ -22,6 +22,27 @@ that every required source path exists before starting Compose.
 `THOUGHT_KHORAL_SOURCE_ROOT` selects that staged root without changing the
 Containerfile paths.
 
+### Approved build-input correction — 2026-11-19
+
+The maintainer-approved [build-input amendment](package-build-inputs-proposal.md)
+implements the existing [local MVP composition/start criteria](../what/local-mvp.md).
+The build stages must retain their existing compiler and verification commands
+and receive the following existing inputs in addition to their manifests and
+source files:
+
+| Build stage | Existing inputs required by the integrated code |
+| --- | --- |
+| Agent gateway | Its patched A2A `vendor/` and pinned `contracts/` directories. |
+| Reference agent | The same gateway library's `vendor/` and `contracts/` directories. |
+| Workspace UI | Its pinned `contracts/` and verification `scripts/` directories, including the published and candidate profile checks run by `prebuild`. |
+
+The added COPY directives correct missing build inputs; they grant no new
+runtime behavior or authority. Contract bytes, dependency locks, verification
+hooks, runtime identities, networking and volume mappings remain unchanged by
+this platform amendment. The amendment records approvals, exact image IDs,
+failed attempts and the passing default-stack smoke; no new decision or What
+behavior is introduced.
+
 The gateway receives `THOUGHT_KHORAL_ALLOWED_ORIGINS`,
 `THOUGHT_KHORAL_LISTEN_ADDRESS`, `THOUGHT_KHORAL_OIDC_AUDIENCE`,
 `THOUGHT_KHORAL_OIDC_ISSUER`, `THOUGHT_KHORAL_OIDC_JWKS_URL`, and

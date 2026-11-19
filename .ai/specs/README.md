@@ -11,6 +11,7 @@ For the coordinated Codex conversation status across all projects, see the [shar
 - [What: local MVP platform](what/local-mvp.md)
 - [What: public documentation](what/public-documentation.md)
 - [How: implementation](how/implementation.md)
+- [Approved How: complete container build inputs](how/package-build-inputs-proposal.md)
 - [Decisions](decisions/README.md)
 - [Decision 002: ThoughtKhoral project identity](decisions/002-thoughtkhoral-identity.md)
 
@@ -65,3 +66,18 @@ The reviewed opt-in Codex platform candidate is pushed to GitHub `main` at
 provider-free composed smoke passed. Packaged deployment and separately
 authorized live-provider verification remain open; this experimental POC is not
 claimed production-ready.
+
+## Approved build-input maintenance — 2026-11-19
+
+The maintainer approved the [bounded build-input correction](how/package-build-inputs-proposal.md)
+before implementation. It supplies existing contracts to the gateway and
+reference-agent build stages and existing contracts/scripts to the UI stage.
+It implements the existing [local MVP composition/start criteria](what/local-mvp.md)
+without changing product behavior, protocols, identity, isolation, or storage.
+The main [implementation design](how/implementation.md) incorporates this
+amendment. Publication remains separate from these approved local changes.
+
+All three image builds and the default deterministic-stack smoke passed.
+The containers were subsequently stopped and removed at the user's request;
+the database volume was preserved. This does not close opt-in Codex Task 9,
+live-provider, rendered-browser, or production acceptance gates.
