@@ -215,3 +215,14 @@ development dependency. A bounded 3.1.9 patch is tested outside the release
 worktree with a clean audit; approval of that dependency exception is pending.
 Task A's release/consumer exit is not satisfied. Task B's concrete profile and
 Tasks C/D remain unexecuted; no candidate was enabled for live use.
+
+### Approved dependency correction checkpoint
+
+The maintainer approved the exact 3.1.9 exception, recorded before implementation
+source `f1c8621810c8c121c1aafc8e5a342d6626c4b843` in the isolated contracts
+branch. Full worktree/extracted tests and both online audits now pass; repeated
+corrected TAR/lock outputs match, with all 156 candidate payload and 135 retained
+schema/fixture hashes preserved. The current root report names all asset hashes.
+This closes the local audit blocker, superseding the preceding pending-exception
+status. Task A's publication and verified consumer transition remain open; no
+new live profile or service/provider activation is authorized by this correction.
