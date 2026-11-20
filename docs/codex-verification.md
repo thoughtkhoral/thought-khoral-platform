@@ -20,6 +20,14 @@ Local containers remain stopped and the external database volume preserved.
 
 ## Provider-free composed smoke
 
+Latest contract checkpoint — 2026-11-20: the
+[v1.1.0 artifact](https://github.com/thoughtkhoral/thought-khoral-contracts/releases/tag/thought-khoral-agent-conversation-v1.1.0)
+is now published and fresh downloads verify. Broker/UI still retain historical
+candidate pins pending released-provenance adoption. The commands below keep
+their exact historical source/profile definitions; no new live profile or
+activation follows from the contract release. The earlier open-publication
+statement is a dated checkpoint, not current artifact status.
+
 For the next current-source packaged/browser run, read the
 [approved 2026-11-20 acceptance plan](../.ai/specs/how/task9-packaged-acceptance-2026-11-20.md)
 and its root procedure first. They identify release/consumer prerequisites and
@@ -230,8 +238,10 @@ and anchored by the runner. It names contracts commit
 `1ea828f28725ddaaefa21d083473f9abbd777975`, archive SHA-256
 `fab59a486f6498b843467202debcb0768403bd57ba7dda41be2a01e5f23fdda8`, and external
 lock SHA-256 `7914d32eae2487879a68405b5095a6b9aa91355f87529c43f4055844821902a9`.
-The candidate is explicitly `unreleased-local-candidate`; its proposed v1.1.0
-release has not been published.
+The historical candidate remains explicitly `unreleased-local-candidate`.
+The separate v1.1.0 release was published on 2026-11-20; this fixture's exact
+candidate pins and synthetic-only authorization remain unchanged pending the
+verified consumer transition.
 
 | Source | Exact candidate revision | Path override |
 | --- | --- | --- |

@@ -226,3 +226,16 @@ schema/fixture hashes preserved. The current root report names all asset hashes.
 This closes the local audit blocker, superseding the preceding pending-exception
 status. Task A's publication and verified consumer transition remain open; no
 new live profile or service/provider activation is authorized by this correction.
+
+### Published contract checkpoint
+
+The maintainer authorized publication with “proceed”. Release
+`thought-khoral-agent-conversation-v1.1.0` is published at frozen source
+`f1c8621810c8c121c1aafc8e5a342d6626c4b843`; fresh downloaded assets, source
+metadata and all 156 payload hashes verify against the reviewed anchors.
+The root report and contracts publication manifest retain the exact evidence.
+Task A's artifact-publication prerequisite is closed. Its broker/UI released
+consumer transition remains open, along with Task B's concrete acceptance
+profile and all packaged/browser/live execution. Historical candidate pins
+and the candidate-plus-live refusal are unchanged; no provider activation
+follows from publication.
