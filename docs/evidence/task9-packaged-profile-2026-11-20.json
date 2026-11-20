@@ -1,0 +1,84 @@
+{
+  "kind": "provider-free packaged-profile preparation",
+  "profileSha256": "7106f7e41a6bc13feab8a0b51fccde9b47fefca2d63980d551ed929eac1c1a71",
+  "profile": {
+    "id": "packaged-v1.1",
+    "profileVersion": "thought-khoral.agent-conversation.v1",
+    "cliVersion": "0.160.0",
+    "platform": "linux/arm64",
+    "revisions": {
+      "contracts": "f1c8621810c8c121c1aafc8e5a342d6626c4b843",
+      "broker": "673294e66fed2b6e98d73e08cfe4a23a0e5e4d48",
+      "mediator": "48a72bcd6a8c668004e10fe2ae3cd01cdaf9361c",
+      "worker": "3f0318b40af8d5c9c47cc43e975b3db4836df983",
+      "ui": "29a940012adfeb796f59c5b89b00cab7a4d0df68",
+      "memory": "7b4651839d1fbb41b426f80ca34712669da667f1"
+    },
+    "contract": {
+      "tag": "thought-khoral-agent-conversation-v1.1.0",
+      "commit": "f1c8621810c8c121c1aafc8e5a342d6626c4b843",
+      "archiveSha256": "b0370e43627ce6044852df75bfbc4b749d904aa9cedcfc558c61bb4e07dc95ff",
+      "lockSha256": "b7f3ad928c5c17be7e936da4959b7e7e8555bb4ed3602fa62f71a8721f042d8f"
+    },
+    "worker": {
+      "imageId": "sha256:2dd78cdf5eddb9ca271611998ea44fe6d6cfde6cfca8ba7d1d6c8858240b540d",
+      "cargoLockSha256": "1c70ff10992b000c93232155ca0032cab9b7a6c27a13ca4ac46eba862e864a34",
+      "cliSha256": "50b06603bdcdac39b714f5c3e68583c002b8ad8779ebfdaaf4932ff016b379c0",
+      "proofSha256": "91ab6c55e22236a578b494f071bbd82ce867a2e9aae4010526b7319165344169"
+    }
+  },
+  "consumerTests": {
+    "broker": {
+      "passed": 160,
+      "ignored": 1,
+      "databaseFixtureRemoved": true
+    },
+    "ui": {
+      "passed": 193,
+      "skipped": 1,
+      "typecheck": "passed",
+      "productionBuild": "passed",
+      "knownWarning": "existing Vite chunk-size advisory"
+    }
+  },
+  "offlineProfileTests": {
+    "new": 7,
+    "historicalLiveGuards": 13,
+    "historicalCandidatePins": 26,
+    "total": 46
+  },
+  "worker": {
+    "source": "3f0318b40af8d5c9c47cc43e975b3db4836df983",
+    "containerfileSha256": "c0b85b1547d5ce683531ef1602b98d2a08056464eb74ead0f9037e13aa136d92",
+    "build": "unchanged production Containerfile; linux/arm64; CARGO_BUILD_JOBS=1; measured source/lock image labels",
+    "imageId": "sha256:2dd78cdf5eddb9ca271611998ea44fe6d6cfde6cfca8ba7d1d6c8858240b540d",
+    "packageStartupCasesPassed": 10,
+    "nativeCapture": {
+      "modelEffortCases": 44,
+      "models": 8,
+      "resume": true,
+      "unsolicitedToolRefusals": 6,
+      "proofSha256": "91ab6c55e22236a578b494f071bbd82ce867a2e9aae4010526b7319165344169",
+      "byteIdenticalToCommittedProof": true,
+      "providerInference": false
+    },
+    "actualProfilePreflight": {
+      "imageId": "sha256:2dd78cdf5eddb9ca271611998ea44fe6d6cfde6cfca8ba7d1d6c8858240b540d",
+      "platform": "linux/arm64",
+      "cargoLockSha256": "1c70ff10992b000c93232155ca0032cab9b7a6c27a13ca4ac46eba862e864a34",
+      "cliSha256": "50b06603bdcdac39b714f5c3e68583c002b8ad8779ebfdaaf4932ff016b379c0",
+      "proofSha256": "91ab6c55e22236a578b494f071bbd82ce867a2e9aae4010526b7319165344169",
+      "sourceCommit": "3f0318b40af8d5c9c47cc43e975b3db4836df983",
+      "packageVerified": true
+    },
+    "ownedProbeContainerRemoved": true
+  },
+  "independentReview": "no actionable findings; final exact-image normalization reviewed",
+  "limits": [
+    "local unpushed consumer and platform branches",
+    "no application stack or provider activation",
+    "no real-browser, live-provider or private-DNS acceptance",
+    "worker image is local immutable image; not registry publication"
+  ],
+  "localRawEvidenceDirectory": "/private/tmp/thoughtkhoral-task9-consumers-20261120"
+}
