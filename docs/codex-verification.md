@@ -1,5 +1,18 @@
 # Codex room-conversation verification
 
+## Current workspace context — 2026-11-20
+
+The exact packaged-v1.1 acceptance profile is implemented and reviewed at local source `996e1887234b8958a315279aa3d5aa194a7fad52`. Profile SHA-256 is `7106f7e41a6bc13feab8a0b51fccde9b47fefca2d63980d551ed929eac1c1a71`. Forty-six profile/historical-guard tests and actual credential-free image/source preflight passed. The verified local ARM64 image passed ten package/startup probes and byte-identical native capture; this is not full packaged-stack/private-DNS/browser/live acceptance.
+
+This is the prepared source branch: its released imports/profile are present.
+Its frozen implementation commit above remains the acceptance identity; later
+documentation commits are evidence followups. The branch remains unpushed/unmerged.
+
+Derived from the [local specification index](../.ai/specs/README.md) and
+[root workspace authority](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/workspace-state.md).
+The cited tests retain their original source identities; this documentation
+refresh adds no activation, publication or runtime acceptance.
+
 Governing sources: [local requirements](../.ai/specs/what/codex-local-service.md),
 [approved local design](../.ai/specs/how/codex-local-service.md), and the
 [coordinated milestone plan](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/codex-room-conversations-implementation-plan.md).
@@ -7,7 +20,9 @@ The exact profile is `thought-khoral.agent-conversation.v1` from contracts tag
 `thought-khoral-agent-conversation-v1.0.0` (`85baf86e574276fcd036e53e23641af6aad602f9`).
 This guide is derived verification procedure; it does not change those specifications.
 
-## Current evidence boundary — 2026-11-19
+<a id="current-evidence-boundary--2026-11-19"></a>
+
+## Historical evidence boundary — 2026-11-19
 
 The [owning maintenance checkpoint](../.ai/specs/how/codex-local-service.md#current-maintenance-and-verification-scope--2026-11-19)
 records the published platform build-input correction, passing deterministic
@@ -365,3 +380,12 @@ HTTP. This is local synthetic acceptance; packaged Compose, a browser, real
 Keycloak and live-provider acceptance remain separate pending gates. The four task
 reviews and final whole-branch review passed for the exact runtime and test-only UI
 revisions. F1 and defaults discovery are accepted for this local synthetic candidate.
+
+## Documentation followup and frozen sources
+
+Documentation-only HEADs can advance after the tested profile source. Set the
+component TASK9_*_REPO paths to preserved clean snapshots when current checkouts
+no longer equal the profile commits. The executing platform revision is measured
+separately. See the [current workspace guide](https://github.com/thoughtkhoral/thought-khoral/blob/main/docs/workspace-status.md)
+for the local source map and publication/integration boundary. No profile or
+artifact bytes changed during this documentation refresh.
