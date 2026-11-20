@@ -1,5 +1,7 @@
 # ThoughtKhoral local MVP platform
 
+[Project documentation](docs/README.md) · [Documentation requirements](.ai/specs/what/public-documentation.md)
+
 ## Current workspace context — 2026-11-20
 
 The exact packaged-v1.1 acceptance profile is implemented and reviewed at local source `996e1887234b8958a315279aa3d5aa194a7fad52`. Profile SHA-256 is `7106f7e41a6bc13feab8a0b51fccde9b47fefca2d63980d551ed929eac1c1a71`. Forty-six profile/historical-guard tests and actual credential-free image/source preflight passed. The verified local ARM64 image passed ten package/startup probes and byte-identical native capture; this is not full packaged-stack/private-DNS/browser/live acceptance.
