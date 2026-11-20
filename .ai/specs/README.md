@@ -1,12 +1,30 @@
 # ThoughtKhoral platform specifications
 
+## Current workspace state — 2026-11-20
+
+The exact packaged-v1.1 acceptance profile is implemented and reviewed at local source `996e1887234b8958a315279aa3d5aa194a7fad52`. Profile SHA-256 is `7106f7e41a6bc13feab8a0b51fccde9b47fefca2d63980d551ed929eac1c1a71`. Forty-six profile/historical-guard tests and actual credential-free image/source preflight passed. The verified local ARM64 image passed ten package/startup probes and byte-identical native capture; this is not full packaged-stack/private-DNS/browser/live acceptance.
+
+This canonical checkout retains its previous candidate imports/historical runner.
+The prepared implementation is on a separate local branch, not integrated here.
+Current documentation describes both contexts without importing runtime changes.
+
+- [How: packaged profile validation](how/packaged-profile-validation.md)
+
+See the [root workspace authority](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/workspace-state.md) for exact source/release
+identities, preserved source snapshots and remaining gates. Documentation-only
+HEADs are not substitutions for frozen acceptance commits. Earlier dated
+checkpoints retain their historical evidence; no runtime suite was rerun for
+this prose refresh.
+
 Parent requirements in the ThoughtKhoral root `.ai/specs/` apply here. This project may diverge only through an accepted local decision record that identifies the overridden parent rule and its consequences.
 
 See the [root specification index](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/README.md).
 
 For the coordinated Codex conversation status across all projects, see the [shared status guide](https://github.com/thoughtkhoral/thought-khoral/blob/main/docs/codex-conversation-status.md).
 
-## Current verification scope — 2026-11-19
+<a id="current-verification-scope--2026-11-19"></a>
+
+## Historical verification scope — 2026-11-19
 
 See the [owning current checkpoint](how/codex-local-service.md#current-maintenance-and-verification-scope--2026-11-19) for source publication and
 verification attribution. The integrated Codex candidate is pushed on `main`;
