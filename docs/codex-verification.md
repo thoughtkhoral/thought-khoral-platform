@@ -21,7 +21,7 @@ Local containers remain stopped and the external database volume preserved.
 ## Provider-free composed smoke
 
 For the next current-source packaged/browser run, read the
-[proposed 2026-11-20 acceptance plan](../.ai/specs/how/task9-packaged-acceptance-2026-11-20.md)
+[approved 2026-11-20 acceptance plan](../.ai/specs/how/task9-packaged-acceptance-2026-11-20.md)
 and its root procedure first. They identify release/consumer prerequisites and
 a proposed separate acceptance profile. That profile is not implemented by
 this documentation change. The executable commands and historical pins below

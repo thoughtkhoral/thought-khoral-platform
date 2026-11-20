@@ -199,3 +199,19 @@ repositories, specification hierarchy, repository references, identity and
 whitespace. Run the existing provider-free live-guard tests to confirm the
 observed procedure still fails closed. Do not run container fixtures, builds,
 browser activation or provider checks merely to validate this plan.
+
+## Local execution checkpoint — 2026-11-20
+
+Task A approval is recorded above. Contracts preparation now exists on isolated
+branch `codex/task9-contract-release-20261120` at source `65bdc00`, following
+owning specification commits. Full worktree and extracted-archive suites pass;
+two independently prepared TAR/lock outputs match; the 156 candidate payload
+and 135 retained schema/fixture hashes match independently reviewed source.
+The [root execution report](https://github.com/thoughtkhoral/thought-khoral/blob/main/docs/task9-release-preparation-2026-11-20.md)
+retains exact local identities and evidence limits.
+
+The required online audit blocks publication on the existing fast-uri 3.1.8
+development dependency. A bounded 3.1.9 patch is tested outside the release
+worktree with a clean audit; approval of that dependency exception is pending.
+Task A's release/consumer exit is not satisfied. Task B's concrete profile and
+Tasks C/D remain unexecuted; no candidate was enabled for live use.
