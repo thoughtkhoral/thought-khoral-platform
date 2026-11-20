@@ -1,0 +1,44 @@
+{
+  "profileVersion": "thought-khoral.agent-conversation.v1",
+  "activationApproved": false,
+  "providerCallsApproved": false,
+  "brokerOrigin": "http://127.0.0.1:8080",
+  "roomId": "00000000-0000-4000-8000-000000000000",
+  "agentId": "74686f75-6768-746b-686f-72616c000004",
+  "mayaTokenFile": "/private/tmp/Task9-live-maya.token",
+  "leoTokenFile": "/private/tmp/Task9-live-leo.token",
+  "factCode": "Task9-REPLACE-UNIQUE-PUBLIC-FACT",
+  "correctionCode": "Task9-REPLACE-UNIQUE-PUBLIC-CORRECTION",
+  "interveningCode": "Task9-REPLACE-UNIQUE-INTERVENING-FACT",
+  "targetedCanary": "Task9-REPLACE-UNIQUE-TARGETED-CANARY",
+  "workerContainer": "thought-khoral-codex-agent",
+  "workerImageDigest": "sha256:2dd78cdf5eddb9ca271611998ea44fe6d6cfde6cfca8ba7d1d6c8858240b540d",
+  "contractTag": "thought-khoral-agent-conversation-v1.1.0",
+  "cliVersion": "0.160.0",
+  "revisions": {
+    "contracts": "f1c8621810c8c121c1aafc8e5a342d6626c4b843",
+    "broker": "673294e66fed2b6e98d73e08cfe4a23a0e5e4d48",
+    "mediator": "48a72bcd6a8c668004e10fe2ae3cd01cdaf9361c",
+    "worker": "3f0318b40af8d5c9c47cc43e975b3db4836df983",
+    "ui": "29a940012adfeb796f59c5b89b00cab7a4d0df68",
+    "memory": "7b4651839d1fbb41b426f80ca34712669da667f1",
+    "platform": "0000000000000000000000000000000000000000"
+  },
+  "alternateSettings": null,
+  "toolProbesApproved": false,
+  "evidenceFile": "/private/tmp/Task9-live-evidence.json",
+  "acceptanceProfile": "packaged-v1.1",
+  "platform": "linux/arm64",
+  "contract": {
+    "tag": "thought-khoral-agent-conversation-v1.1.0",
+    "commit": "f1c8621810c8c121c1aafc8e5a342d6626c4b843",
+    "archiveSha256": "b0370e43627ce6044852df75bfbc4b749d904aa9cedcfc558c61bb4e07dc95ff",
+    "lockSha256": "b7f3ad928c5c17be7e936da4959b7e7e8555bb4ed3602fa62f71a8721f042d8f"
+  },
+  "worker": {
+    "imageId": "sha256:2dd78cdf5eddb9ca271611998ea44fe6d6cfde6cfca8ba7d1d6c8858240b540d",
+    "cargoLockSha256": "1c70ff10992b000c93232155ca0032cab9b7a6c27a13ca4ac46eba862e864a34",
+    "cliSha256": "50b06603bdcdac39b714f5c3e68583c002b8ad8779ebfdaaf4932ff016b379c0",
+    "proofSha256": "91ab6c55e22236a578b494f071bbd82ce867a2e9aae4010526b7319165344169"
+  }
+}

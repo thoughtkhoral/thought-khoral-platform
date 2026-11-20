@@ -78,3 +78,31 @@ synthetic PATH commands must prove invalid selections/configurations perform no
 engine/network contact and create no output. Preserve the existing live guard
 and candidate-pin suites. Actual package build/admission/capture evidence remains
 separate from offline tests and from future live-provider acceptance.
+
+## Local implementation checkpoint — 2026-11-20
+
+The reviewed profile SHA-256 is
+`7106f7e41a6bc13feab8a0b51fccde9b47fefca2d63980d551ed929eac1c1a71`.
+It fixes reviewed broker `673294e66fed2b6e98d73e08cfe4a23a0e5e4d48`, UI
+`29a940012adfeb796f59c5b89b00cab7a4d0df68` and actual worker image
+`sha256:2dd78cdf5eddb9ca271611998ea44fe6d6cfde6cfca8ba7d1d6c8858240b540d`.
+The unchanged production worker Containerfile built the final reviewed lock
+with one Cargo job and measured source/lock labels. All ten actual package and
+startup checks passed; the actual ARM64 native capture reproduced the retained
+proof exactly across 44 model/effort cases, resume and six tool refusals.
+
+The real profile preflight passed image, architecture, labels, package markers,
+CLI/proof bytes using a network-none container running only sleep, then removed
+that owned container. This exposed Podman's bare hexadecimal container-image
+representation: a regression failed before adding normalization of bare or
+sha256-prefixed full lowercase hashes. Both forms still compare to the exact
+pinned digest; tags, abbreviated IDs and other values remain refused.
+
+All 46 new/retained tests pass: seven profile tests, 13 historical live guards
+and 26 historical candidate-pin tests. Synthetic CLI integration covers both
+selected and historical positive preflight through the terminal gate, plus
+early mismatch refusal without engine contact or evidence output. Independent
+review approved the code and final normalization with no actionable issue.
+The [retained preparation manifest](../../../docs/evidence/task9-packaged-profile-2026-11-20.json)
+keeps exact source/package/proof identities and evidence boundaries. No actual
+application stack, private-DNS/browser check or provider call was activated.

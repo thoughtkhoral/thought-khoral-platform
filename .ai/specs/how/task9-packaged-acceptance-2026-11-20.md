@@ -239,3 +239,27 @@ consumer transition remains open, along with Task B's concrete acceptance
 profile and all packaged/browser/live execution. Historical candidate pins
 and the candidate-plus-live refusal are unchanged; no provider activation
 follows from publication.
+
+### Local released consumers and prepared profile checkpoint
+
+The maintainer instructed local consumer transition/profile preparation to
+proceed after publication. Reviewed broker source `673294e` and UI `29a9400`
+now consume the exact released v1.1 defaults schema and release-lock anchor,
+while retaining all historical candidate and v1.0 vendor bytes. Broker full
+serial verification passes 160 tests with one intentional external-agent
+ignore and the isolated database removed. UI passes 193 tests with one opt-in
+composed-test skip, TypeScript and production build.
+
+The [owning profile How](packaged-profile-validation.md) and retained manifest
+record the actual final-lock ARM64 image build, ten package/startup probes,
+byte-identical native policy capture, actual provider-free profile preflight
+and 46 passing offline regression tests. Task A's consumer transition and
+Task B's exact profile/runner are complete within this reviewed local-source
+scope. Their three isolated branches are not published or merged; canonical
+main checkouts retain their previous consumers/platform runner.
+
+Tasks C/D still need the assembled packaged stack, configured operator secrets,
+reviewed activation and live-provider authorization, private-DNS/readiness and
+real-browser evidence. This preparation does not close Task 9 or live/production
+acceptance. No application stack or provider call was started; only owned
+provider-free verification fixtures ran and were removed.

@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID, createHash } from 'node:crypto';
 import { createInterface } from 'node:readline/promises';
 import { createServer } from 'node:net';
+import { selectAcceptanceProfile, loadPackagedProfile, verifyPackagedSources, verifyPackagedWorker } from './lib/codex-packaged-profile.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const fixture = join(root, 'scripts/fixtures/codex-conversation');
@@ -19,11 +20,13 @@ const pins = {
 };
 const help = `Usage: node scripts/smoke-codex-conversation.mjs --fake
        node scripts/smoke-codex-conversation.mjs --live --allow-live
+       node scripts/smoke-codex-conversation.mjs --live --allow-live --acceptance-profile packaged-v1.1
 
 --fake  Run isolated PostgreSQL and the real broker, mediator, and worker libraries
         with signed synthetic tokens and a fake native app-server executable.
 --defaults-candidate  With --fake only: exact unreleased local defaults/UI sources.
 --live  Require explicit opt-in and an operator packet; see docs/codex-verification.md.
+--acceptance-profile packaged-v1.1  Select separately pinned published-v1.1 sources and verified ARM64 package.
 --help  Show this usage.
 `;
 
@@ -193,7 +196,7 @@ export function alternateFailure(turn) {
   return { label: 'alternate-settings', taskId: turn.accepted.taskId, state: 'failed',
     failure: { code }, accountAccess: 'unclassified', gate: 'failed' };
 }
-async function liveMode(args) {
+async function liveMode(args, packaged = null) {
   if (!args.includes('--allow-live')) throw new Error('live verification requires --allow-live');
   const packet = process.env.TASK9_LIVE_OPERATOR_PACKET;
   if (!packet) throw new Error('live verification requires TASK9_LIVE_OPERATOR_PACKET');
@@ -217,22 +220,31 @@ async function liveMode(args) {
     throw new Error('live codes must be distinct');
   if (typeof value.workerContainer !== 'string' || !/^[A-Za-z0-9_.-]{1,128}$/.test(value.workerContainer))
     throw new Error('workerContainer must name only the activated local worker');
-  const reviewedRevisions = {
-    platform: command('git', ['-C', root, 'rev-parse', 'HEAD']),
-    broker: pins.broker[2], mediator: pins.mediator[2], worker: pins.worker[2],
-    ui: 'e51d67e9e1a986601df6b5e1acf68aaf7ae0870d',
-  };
-  if (value.contractTag !== 'thought-khoral-agent-conversation-v1.0.0'
+  if (packaged) {
+    verifyPackagedSources(packaged.profile, value, root, (program, argv) => command(program, argv, { timeout: 30_000, maxBuffer: 1024 * 1024 }));
+  } else {
+    const reviewedRevisions = {
+      platform: command('git', ['-C', root, 'rev-parse', 'HEAD']),
+      broker: pins.broker[2], mediator: pins.mediator[2], worker: pins.worker[2],
+      ui: 'e51d67e9e1a986601df6b5e1acf68aaf7ae0870d',
+    };
+    if (value.contractTag !== 'thought-khoral-agent-conversation-v1.0.0'
       || value.cliVersion !== '0.160.0'
       || value.workerImageDigest !== 'sha256:2d8bfade27802f910cf68e832722c93b4a2acc2addb825711e1223617a4cd385'
       || !value.revisions || !Object.entries(reviewedRevisions).every(([key, revision]) => value.revisions[key] === revision))
-    throw new Error('live packet requires exact contract, CLI, image digest, and repository revisions');
+      throw new Error('live packet requires exact contract, CLI, image digest, and repository revisions');
+  }
   const evidencePath = privatePath(value.evidenceFile, 'evidenceFile', { output: true });
   const maya = readToken(value.mayaTokenFile);
   const leo = readToken(value.leoTokenFile);
   if (maya.actorId === leo.actorId) throw new Error('Maya and Leo must have distinct human credentials');
-  const actualImage = command('podman', ['inspect', '--format', '{{.Image}}', value.workerContainer]);
-  if (actualImage !== value.workerImageDigest) throw new Error('activated worker image differs from operator packet');
+  let packageVerification;
+  if (packaged) {
+    packageVerification = verifyPackagedWorker(packaged.profile, value.workerContainer, (program, argv) => command(program, argv, { timeout: 30_000, maxBuffer: 1024 * 1024 }));
+  } else {
+    const actualImage = command('podman', ['inspect', '--format', '{{.Image}}', value.workerContainer]);
+    if (actualImage !== value.workerImageDigest) throw new Error('activated worker image differs from operator packet');
+  }
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error('live verification requires an interactive operator terminal');
   const evidence = {
     evidenceClass: 'live-provider-operator-assisted',
@@ -242,6 +254,8 @@ async function liveMode(args) {
     cliVersion: value.cliVersion,
     workerImageDigest: value.workerImageDigest,
     revisions: value.revisions,
+    ...(packaged ? { acceptanceProfile: { id: packaged.profile.id, sha256: packaged.sha256 },
+      contract: packaged.profile.contract, packageVerification } : {}),
     roomId: value.roomId,
     checks: [],
     manualEvidenceStillRequired: ['native thread IDs from retained receipts', 'provider-key exclusion from native outputs', 'live shell/file/MCP and destination denial from runtime and network audit'],
@@ -480,9 +494,10 @@ async function fakeMode({ defaultsCandidate = false } = {}) {
 if (process.argv[1] && existsSync(process.argv[1]) && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   try {
+    const acceptanceProfile = selectAcceptanceProfile(args);
     if (args.length === 1 && args[0] === '--help') process.stdout.write(help);
     else if (args.includes('--live') && args.includes('--defaults-candidate')) throw new Error('defaults candidate is unreleased and forbidden in live mode');
-    else if (args.includes('--live')) await liveMode(args);
+    else if (args.includes('--live')) await liveMode(args, acceptanceProfile ? loadPackagedProfile() : null);
     else if (args.length === 1 && args[0] === '--fake') await fakeMode();
     else if (args.length === 2 && args.includes('--fake') && args.includes('--defaults-candidate')) await fakeMode({ defaultsCandidate: true });
     else throw new Error(`expected --fake or --live\n${help}`);

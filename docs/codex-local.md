@@ -24,6 +24,12 @@ boolean as evidence that native tools are absent.
 
 ## Configuration
 
+For the prepared current-source released-v1.1 run, use the separately pinned
+[packaged acceptance profile](codex-verification.md#prepared-released-v11-packaged-profile--2026-11-20).
+Its exact local worker image, consumer commits and source/lock labels have
+provider-free package evidence. The profile does not activate this deployment;
+the controls and separately authorized live procedure below remain required.
+
 Use an immutable reviewed worker image ID or digest in
 `THOUGHT_KHORAL_CODEX_IMAGE`. Keep these three distinct, private files outside
 version control and use their absolute paths:

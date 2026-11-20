@@ -18,7 +18,66 @@ Task 9 opt-in packaged room-stack, rendered-browser/Keycloak and live-provider
 verification remain open, along with v1.1 contract, image and release publication.
 Local containers remain stopped and the external database volume preserved.
 
-## Provider-free composed smoke
+## Prepared released-v1.1 packaged profile — 2026-11-20
+
+The [approved validation design](../.ai/specs/how/packaged-profile-validation.md)
+adds a separate exact `packaged-v1.1` profile after published artifact download
+verification and local broker/UI released-provenance transition. Its
+[source-controlled pins](../scripts/fixtures/codex-conversation/packaged-v1.1-pins.json)
+bind broker `673294e`, UI `29a9400`, published contracts `f1c8621`, and the actual
+provider-free verified final-lock ARM64 worker package. The profile bytes are
+anchored at SHA-256
+`7106f7e41a6bc13feab8a0b51fccde9b47fefca2d63980d551ed929eac1c1a71`.
+Worker image ID is
+`sha256:2dd78cdf5eddb9ca271611998ea44fe6d6cfde6cfca8ba7d1d6c8858240b540d`.
+It is a local immutable image, not a published registry reference. Component
+branches remain local until separately published/merged; their full identities
+are in the profile. Historical modes and their exact candidate pins below
+remain unchanged.
+
+Run offline preflight regression coverage without a container or provider:
+
+```sh
+node --test scripts/tests/codex-packaged-pins.test.mjs scripts/tests/codex-conversation-smoke.test.mjs scripts/tests/codex-defaults-pins.test.mjs
+```
+
+After separately authorized activation/provider configuration, copy the
+[packaged operator example](../scripts/fixtures/codex-conversation/live-operator-packet.packaged.example.json)
+outside all Git worktrees with owner-only permissions. Set a dedicated empty
+room, two actual private human token paths, new evidence path and the exact
+platform commit from the clean executing checkout. The all-zero example
+platform revision is deliberately invalid; never treat the example as approved
+activation. Approval booleans remain false until actually approved.
+
+Set `TASK9_CONTRACTS_REPO`, `TASK9_BROKER_REPO`, `TASK9_MEDIATOR_REPO`,
+`TASK9_WORKER_REPO`, `TASK9_UI_REPO` and `TASK9_MEMORY_REPO` when source checkouts
+are not in the default sibling layout. These override paths only. Each must
+have the exact clean commit in the profile; contracts may use a detached clean
+checkout at the release tag. An evidence-only later commit is not silently
+substituted. The platform's actual commit is checked separately to avoid a
+self-referential committed profile.
+
+```sh
+node scripts/smoke-codex-conversation.mjs --live --allow-live --acceptance-profile packaged-v1.1
+```
+
+That invocation still requires `TASK9_LIVE_OPERATOR_PACKET` and all existing
+private path, loopback, distinct-human, output-exclusivity and interactive
+terminal checks. Before broker requests, it verifies activated container image,
+Linux/ARM64, source/lock labels, actual worker package success and measured CLI
+and proof-file bytes. Labels alone cannot establish acceptance. New engine
+commands have bounded output/time and failures expose generic diagnostics.
+Evidence adds the profile digest, release provenance and safe measured package
+identities; no credentials or raw native output are recorded.
+
+Local preparation passed full broker tests with a removed temporary database,
+UI tests/build, actual worker package/startup probes and byte-identical synthetic
+native capture. The CLI's selected and historical profiles both reach the
+terminal gate in synthetic offline integration. These results do not activate
+the stack or establish real-browser, private-DNS, provider or live-isolation
+acceptance. The original Task 9 live/manual evidence requirements still apply.
+
+## Historical provider-free composed smoke
 
 Latest contract checkpoint — 2026-11-20: the
 [v1.1.0 artifact](https://github.com/thoughtkhoral/thought-khoral-contracts/releases/tag/thought-khoral-agent-conversation-v1.1.0)
@@ -31,8 +90,7 @@ statement is a dated checkpoint, not current artifact status.
 For the next current-source packaged/browser run, read the
 [approved 2026-11-20 acceptance plan](../.ai/specs/how/task9-packaged-acceptance-2026-11-20.md)
 and its root procedure first. They identify release/consumer prerequisites and
-a proposed separate acceptance profile. That profile is not implemented by
-this documentation change. The executable commands and historical pins below
+a separate acceptance profile, now implemented above. The executable commands and historical pins below
 remain unchanged; current `main` revisions cannot simply replace their inputs.
 
 From this platform checkout, with Podman, Node, Cargo, Python 3, the local
