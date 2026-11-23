@@ -65,6 +65,47 @@ The root orchestrator owns the private backup/isolated migration check and the
 separate existing-volume upgrade gate. This preparation grants no upgrade,
 activation, publication, provider-call or Task 9 acceptance authority.
 
+## Prepared separate compatibility profile — 2026-11-23
+
+The separate [compatibility pins](../scripts/fixtures/codex-conversation/packaged-v1.1-runtime-compat-pins.json)
+have SHA-256 `14c5a784a1f6d8c944f25570f1b0dda741831178348ad7052ecb7301529d2f0c`.
+They change only the profile identity, corrected worker source `423d4e8` and
+immutable ARM64 image `sha256:1ac229b25167845b4d7cec217304f3064b02d65d60c53f35b07c5ae3e3683b3b`.
+All other frozen component sources, CLI, lock and proof identities remain equal
+to the original profile, whose bytes and digest remain unchanged.
+
+Actual network-none production-image adapter regression returns HTTP 503 on the
+original worker and HTTP 200 on the corrected worker through authenticated
+`GET /control/v1/models`. The corrected normalized catalog contains gpt-6.1-sol
+with low, medium, high, xhigh, max and ultra reasoning options. The native catalog
+default is low; platform defaults remain gpt-6.1-sol/medium. Fresh receipt storage
+contains zero conversations and tasks. Owned fixtures are removed after each
+run. This checks real native initialization/catalog through the adapter, with
+no model turn, provider access or stack activation.
+
+```sh
+python3 scripts/tests/codex-native-catalog.py --image sha256:1ac229b25167845b4d7cec217304f3064b02d65d60c53f35b07c5ae3e3683b3b
+node --test scripts/tests/codex-runtime-compat.test.mjs scripts/tests/codex-schema-readiness.test.mjs
+```
+
+The [separate operator example](../scripts/fixtures/codex-conversation/live-operator-packet.runtime-compat.example.json)
+retains false activation/provider approvals and an invalid all-zero platform
+revision until an operator supplies separately approved exact inputs. It adds
+`postgresContainer`, a closed local container name. Only this profile invokes
+the bounded authenticated read-only schema check before provider requests,
+recording only safe readiness evidence. The unchanged original database currently
+fails that check; the separately restored and migrated clone passes. The
+existing-data upgrade requires separate approval. The namespace-owner watchdog's
+provider-proxy health failure remains under investigation. Profile preparation
+does not establish activation readiness or accept Task 9.
+
+After separate readiness/activation/provider gates are satisfied, the explicit
+selector is `--live --allow-live --acceptance-profile packaged-v1.1-runtime-compat`.
+Its actual clean runner HEAD must match the packet's platform revision; it is
+not embedded in its own profile. Cross-profile packets, malformed database names
+and missing schema fail closed. Historical/default/original-profile behavior
+and fixtures retain their prior interpretation.
+
 ## Prepared released-v1.1 packaged profile — 2026-11-20
 
 The [approved validation design](../.ai/specs/how/packaged-profile-validation.md)

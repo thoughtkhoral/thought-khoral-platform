@@ -10,6 +10,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { createInterface } from 'node:readline/promises';
 import { createServer } from 'node:net';
 import { selectAcceptanceProfile, loadPackagedProfile, verifyPackagedSources, verifyPackagedWorker } from './lib/codex-packaged-profile.mjs';
+import { verifyPackagedSchema } from './lib/codex-runtime-compat.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const fixture = join(root, 'scripts/fixtures/codex-conversation');
@@ -27,6 +28,7 @@ const help = `Usage: node scripts/smoke-codex-conversation.mjs --fake
 --defaults-candidate  With --fake only: exact unreleased local defaults/UI sources.
 --live  Require explicit opt-in and an operator packet; see docs/codex-verification.md.
 --acceptance-profile packaged-v1.1  Select separately pinned published-v1.1 sources and verified ARM64 package.
+--acceptance-profile packaged-v1.1-runtime-compat  Select corrected native adapter package and actual database readiness.
 --help  Show this usage.
 `;
 
@@ -239,8 +241,10 @@ async function liveMode(args, packaged = null) {
   const leo = readToken(value.leoTokenFile);
   if (maya.actorId === leo.actorId) throw new Error('Maya and Leo must have distinct human credentials');
   let packageVerification;
+  let schemaVerification;
   if (packaged) {
     packageVerification = verifyPackagedWorker(packaged.profile, value.workerContainer, (program, argv) => command(program, argv, { timeout: 30_000, maxBuffer: 1024 * 1024 }));
+    schemaVerification = verifyPackagedSchema(packaged.profile, value, (program, argv, options) => command(program, argv, options));
   } else {
     const actualImage = command('podman', ['inspect', '--format', '{{.Image}}', value.workerContainer]);
     if (actualImage !== value.workerImageDigest) throw new Error('activated worker image differs from operator packet');
@@ -255,7 +259,7 @@ async function liveMode(args, packaged = null) {
     workerImageDigest: value.workerImageDigest,
     revisions: value.revisions,
     ...(packaged ? { acceptanceProfile: { id: packaged.profile.id, sha256: packaged.sha256 },
-      contract: packaged.profile.contract, packageVerification } : {}),
+      contract: packaged.profile.contract, packageVerification, ...(schemaVerification ? { schemaVerification } : {}) } : {}),
     roomId: value.roomId,
     checks: [],
     manualEvidenceStillRequired: ['native thread IDs from retained receipts', 'provider-key exclusion from native outputs', 'live shell/file/MCP and destination denial from runtime and network audit'],
@@ -497,7 +501,7 @@ if (process.argv[1] && existsSync(process.argv[1]) && realpathSync(process.argv[
     const acceptanceProfile = selectAcceptanceProfile(args);
     if (args.length === 1 && args[0] === '--help') process.stdout.write(help);
     else if (args.includes('--live') && args.includes('--defaults-candidate')) throw new Error('defaults candidate is unreleased and forbidden in live mode');
-    else if (args.includes('--live')) await liveMode(args, acceptanceProfile ? loadPackagedProfile() : null);
+    else if (args.includes('--live')) await liveMode(args, acceptanceProfile ? loadPackagedProfile(acceptanceProfile) : null);
     else if (args.length === 1 && args[0] === '--fake') await fakeMode();
     else if (args.length === 2 && args.includes('--fake') && args.includes('--defaults-candidate')) await fakeMode({ defaultsCandidate: true });
     else throw new Error(`expected --fake or --live\n${help}`);

@@ -4,14 +4,21 @@ import { resolve } from 'node:path';
 import { readFileSync, lstatSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
-const profileUrl = new URL('../fixtures/codex-conversation/packaged-v1.1-pins.json', import.meta.url);
-const profileSha256 = '7106f7e41a6bc13feab8a0b51fccde9b47fefca2d63980d551ed929eac1c1a71';
+const profileAnchors = new Map([
+  ['packaged-v1.1', '7106f7e41a6bc13feab8a0b51fccde9b47fefca2d63980d551ed929eac1c1a71'],
+  ['packaged-v1.1-runtime-compat', '14c5a784a1f6d8c944f25570f1b0dda741831178348ad7052ecb7301529d2f0c'],
+]);
 
-export function loadPackagedProfile() {
+export function loadPackagedProfile(id = 'packaged-v1.1') {
+  requireValue(profileAnchors.has(id), 'unknown acceptance profile');
+  const profileUrl = new URL(`../fixtures/codex-conversation/${id}-pins.json`, import.meta.url);
+  const sha256 = profileAnchors.get(id);
   requireValue(lstatSync(profileUrl).isFile(), 'acceptance profile anchor must be a regular file');
   const raw = readFileSync(profileUrl);
-  requireValue(createHash('sha256').update(raw).digest('hex') === profileSha256, 'acceptance profile anchor mismatch');
-  return { profile: validatePackagedProfile(JSON.parse(raw)), sha256: profileSha256 };
+  requireValue(createHash('sha256').update(raw).digest('hex') === sha256, 'acceptance profile anchor mismatch');
+  const profile = validatePackagedProfile(JSON.parse(raw));
+  requireValue(profile.id === id, 'acceptance profile anchor identity mismatch');
+  return { profile, sha256 };
 }
 
 const contract = {
@@ -41,16 +48,16 @@ export function selectAcceptanceProfile(args) {
   if (!args.some(arg => arg.startsWith('--acceptance-profile'))) return null;
   requireValue(!args.includes('--defaults-candidate'), 'defaults candidate is forbidden with an acceptance profile');
   const index = args.indexOf('--acceptance-profile');
-  requireValue(args.length === 4 && index >= 0 && args[index + 1] === 'packaged-v1.1'
+  requireValue(args.length === 4 && index >= 0 && profileAnchors.has(args[index + 1])
     && args.filter(arg => arg === '--acceptance-profile').length === 1
     && args.includes('--live') && args.includes('--allow-live'),
-  'acceptance profile requires exactly --live --allow-live --acceptance-profile packaged-v1.1');
-  return 'packaged-v1.1';
+  'acceptance profile requires exactly --live --allow-live --acceptance-profile <reviewed-profile>');
+  return args[index + 1];
 }
 
 export function validatePackagedProfile(p) {
   requireValue(keysEqual(p, ['id', 'profileVersion', 'cliVersion', 'platform', 'revisions', 'contract', 'worker']), 'closed acceptance profile required');
-  requireValue(p.id === 'packaged-v1.1' && p.profileVersion === 'thought-khoral.agent-conversation.v1'
+  requireValue(profileAnchors.has(p.id) && p.profileVersion === 'thought-khoral.agent-conversation.v1'
     && p.cliVersion === '0.160.0' && p.platform === 'linux/arm64', 'acceptance profile identity mismatch');
   requireValue(keysEqual(p.revisions, Object.keys(components)) && Object.values(p.revisions).every(commit), 'exact component revisions required');
   requireValue(isDeepStrictEqual(p.contract, contract) && p.revisions.contracts === contract.commit, 'published release provenance mismatch');
@@ -63,6 +70,10 @@ export function validatePackagedProfile(p) {
 
 export function validatePackagedPacket(p, value, platformRevision) {
   validatePackagedProfile(p);
+  if (p.id === 'packaged-v1.1-runtime-compat') {
+    requireValue(typeof value.postgresContainer === 'string'
+      && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(value.postgresContainer), 'invalid database container in compatibility packet');
+  }
   requireValue(commit(platformRevision) && value.acceptanceProfile === p.id && value.profileVersion === p.profileVersion
     && value.platform === p.platform && value.contractTag === p.contract.tag && value.cliVersion === p.cliVersion
     && value.workerImageDigest === p.worker.imageId && isDeepStrictEqual(value.contract, p.contract)

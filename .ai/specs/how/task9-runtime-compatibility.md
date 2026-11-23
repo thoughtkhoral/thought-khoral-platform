@@ -109,3 +109,15 @@ iteration a remote cp layout issue was corrected using safe archive streaming;
 an unsupported volume-cleanup flag briefly left six owned synthetic volumes,
 which were explicitly removed before the final passing repetition. No current
 stack or operator data was affected.
+
+The separate compatibility profile's SHA-256 is
+`14c5a784a1f6d8c944f25570f1b0dda741831178348ad7052ecb7301529d2f0c`.
+Five new compatibility regressions demonstrated RED before implementation and
+now pass, covering independent anchoring, explicit selection, cross-profile
+refusal, database-name validation, schema-only-new-profile behavior and actual
+CLI synthetic preflight before the terminal gate. All 54 combined
+profile/historical/schema/compatibility tests pass, alongside five Compose
+checks and the retained input/startup/host-admission/mediator-egress checks.
+The original profile remains byte-identical at its original SHA-256. No provider
+workflow or changed-input activation was run. Final actual clean source/package/
+clone-schema helper binding is recorded separately by root after this commit.
