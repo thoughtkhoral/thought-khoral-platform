@@ -7,8 +7,9 @@ services:
     environment:
       THOUGHT_KHORAL_CODEX_ENABLED: "true"
     networks:
-      - thought-khoral-agent-internal
-      - thought-khoral-codex-internal
+      thought-khoral-agent-internal:
+        aliases: [thought-khoral-agent-gateway]
+      thought-khoral-codex-internal: {}
 
   thought-khoral-codex-egress:
     container_name: thought-khoral-codex-egress
@@ -18,7 +19,7 @@ services:
     image: localhost/thought-khoral-codex-provider-proxy:dev
     entrypoint: ["/bin/sh", "/opt/codex/codex-egress.sh"]
     extra_hosts:
-      thought-khoral-codex-provider-proxy: "127.0.0.1"
+      - "thought-khoral-codex-provider-proxy:127.0.0.1"
     user: "0:0"
     cap_drop: [ALL]
     cap_add: [NET_ADMIN]

@@ -147,7 +147,8 @@ services:
       thought-khoral-room-gateway:
         condition: service_healthy
     networks:
-      - thought-khoral-agent-internal
+      thought-khoral-agent-internal:
+        aliases: [thought-khoral-agent-gateway]
     cap_drop: [ALL]
     cap_add: [NET_ADMIN]
     user: "0:0"
