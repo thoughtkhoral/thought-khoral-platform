@@ -32,3 +32,44 @@ Regression tests must demonstrate RED/GREEN generated argv and readiness
 failures; run the existing 46 profile/historical guards and relevant host/input/
 startup checks. No stack activation, provider/model call, image build, push,
 merge, current-stack restart or existing-volume mutation is authorized here.
+
+## Native adapter package regression
+
+The approved root proposal requires actual production-image adapter evidence.
+Add an owned network-none fixture accepting only an immutable image ID. Create
+fresh owned engine volumes for native state, receipts and synthetic distinct
+credential files; prepare ownership with an isolated setup container, then run
+the real worker service as UID/GID 10003 with all capabilities dropped, read-only
+root filesystem, no host ports and a bounded admission expiry. Set isolation
+verification only inside this owned network-none fixture, never as evidence that
+a deployment's firewall is ready. GET only the authenticated control/v1/models
+endpoint via container-local bash TCP. Require HTTP 200, normalized closed
+catalog shape, gpt-6.1-sol and its exact expected reasoning effort options. Send
+no room, thread or turn request and no direct-CLI substitute. Assert fresh
+receipts contain no task rows. Always remove all owned containers and volumes;
+keep failures generic and report only safe image/catalog evidence. Demonstrate
+HTTP 503 on the original immutable image before HTTP 200 on the corrected image.
+
+## Readiness baseline and local verification
+
+The expected catalog metadata was read from the root-owned restored isolated
+PostgreSQL clone after the approved 0006/0007 migrations. The broker migration
+source is the unchanged frozen `673294e66fed2b6e98d73e08cfe4a23a0e5e4d48`:
+0006 SHA-256 `0704c17c443d583c0b60557598ee94945a8380b82e4e0ea146187095a5f6952c`;
+0007 SHA-256 `e36a2102a8a09c9d7456831261ea4b5a935fa07d229de4a95722697197ddc766`.
+The retained JSON contains only schema metadata: seven required tables,
+86 columns, 47 constraints and 16 indexes. Its normalized definitions agree with
+the source migrations, including active-conversation partial uniqueness,
+deferrable task binding, generation bounds, replay uniqueness and foreign keys.
+This deliberately exact PostgreSQL 17 baseline fails closed on structural drift.
+
+Three offline readiness tests pass, including missing/wrong columns/defaults,
+constraints and indexes and generic transport/output failures. Actual bounded
+authenticated read-only preflight passes on the migrated clone and refuses the
+unchanged original database, which lacks conversation tables. Neither check
+changes database state. Existing 46 profile/historical guards pass. Compose
+RED showed the bare extra-host value and missing owner alias; GREEN passes five
+checks with the actual installed generator. Input/startup, host admission,
+mediator-egress and four proxy-policy tests pass. Optional historical cleanup
+checks cannot reach assertions while the current stack occupies fixed port
+8080; the stack and historical fixtures remain untouched.

@@ -1,0 +1,756 @@
+{
+  "agent_conversations": {
+    "columns": {
+      "active_task_id": {
+        "default": null,
+        "nullable": true,
+        "type": "uuid"
+      },
+      "agent_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "consumed_revision": {
+        "default": "0",
+        "nullable": false,
+        "type": "bigint"
+      },
+      "conversation_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "created_at": {
+        "default": null,
+        "nullable": false,
+        "type": "timestamp with time zone"
+      },
+      "generation": {
+        "default": null,
+        "nullable": false,
+        "type": "bigint"
+      },
+      "guidance_revision": {
+        "default": null,
+        "nullable": false,
+        "type": "text"
+      },
+      "policy_revision": {
+        "default": null,
+        "nullable": false,
+        "type": "text"
+      },
+      "room_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "selected_settings": {
+        "default": null,
+        "nullable": false,
+        "type": "jsonb"
+      },
+      "state": {
+        "default": null,
+        "nullable": false,
+        "type": "text"
+      },
+      "updated_at": {
+        "default": null,
+        "nullable": false,
+        "type": "timestamp with time zone"
+      }
+    },
+    "constraints": [
+      {
+        "definition": "CHECK ((agent_id = '74686f75-6768-746b-686f-72616c000004'::uuid))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK (((char_length(guidance_revision) >= 1) AND (char_length(guidance_revision) <= 128)))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK (((char_length(policy_revision) >= 1) AND (char_length(policy_revision) <= 128)))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK (((consumed_revision >= 0) AND (consumed_revision <= '9007199254740991'::bigint)))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK (((generation >= 1) AND (generation <= '9007199254740991'::bigint)))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK (((state = ANY (ARRAY['reserved'::text, 'running'::text])) = (active_task_id IS NOT NULL)))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK ((state = ANY (ARRAY['reserved'::text, 'running'::text, 'ready'::text, 'unusable'::text, 'superseded'::text])))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK (((state <> 'ready'::text) OR (consumed_revision > 0)))",
+        "validated": true
+      },
+      {
+        "definition": "FOREIGN KEY (active_task_id, conversation_id, room_id, agent_id, generation) REFERENCES conversation_tasks(task_id, conversation_id, room_id, agent_id, generation) DEFERRABLE INITIALLY DEFERRED",
+        "validated": true
+      },
+      {
+        "definition": "PRIMARY KEY (conversation_id)",
+        "validated": true
+      },
+      {
+        "definition": "UNIQUE (conversation_id, room_id, agent_id, generation)",
+        "validated": true
+      },
+      {
+        "definition": "UNIQUE (room_id, agent_id, generation)",
+        "validated": true
+      }
+    ],
+    "indexes": [
+      {
+        "definition": "CREATE UNIQUE INDEX agent_conversations_active_room_agent ON public.agent_conversations USING btree (room_id, agent_id) WHERE (state <> 'superseded'::text)",
+        "ready": true,
+        "valid": true
+      },
+      {
+        "definition": "CREATE UNIQUE INDEX agent_conversations_conversation_id_room_id_agent_id_genera_key ON public.agent_conversations USING btree (conversation_id, room_id, agent_id, generation)",
+        "ready": true,
+        "valid": true
+      },
+      {
+        "definition": "CREATE UNIQUE INDEX agent_conversations_pkey ON public.agent_conversations USING btree (conversation_id)",
+        "ready": true,
+        "valid": true
+      },
+      {
+        "definition": "CREATE UNIQUE INDEX agent_conversations_room_id_agent_id_generation_key ON public.agent_conversations USING btree (room_id, agent_id, generation)",
+        "ready": true,
+        "valid": true
+      }
+    ]
+  },
+  "conversation_disclosures": {
+    "columns": {
+      "agent_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "conversation_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "disclosed_revision": {
+        "default": null,
+        "nullable": false,
+        "type": "bigint"
+      },
+      "first_task_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "generation": {
+        "default": null,
+        "nullable": false,
+        "type": "bigint"
+      },
+      "policy_revision": {
+        "default": null,
+        "nullable": false,
+        "type": "text"
+      },
+      "room_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "source_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "source_kind": {
+        "default": null,
+        "nullable": false,
+        "type": "text"
+      }
+    },
+    "constraints": [
+      {
+        "definition": "CHECK (((char_length(policy_revision) >= 1) AND (char_length(policy_revision) <= 128)))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK (((disclosed_revision >= 1) AND (disclosed_revision <= '9007199254740991'::bigint)))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK ((source_kind = ANY (ARRAY['event'::text, 'decision'::text])))",
+        "validated": true
+      },
+      {
+        "definition": "FOREIGN KEY (first_task_id, conversation_id, room_id, agent_id, generation) REFERENCES conversation_tasks(task_id, conversation_id, room_id, agent_id, generation)",
+        "validated": true
+      },
+      {
+        "definition": "PRIMARY KEY (conversation_id, source_id)",
+        "validated": true
+      }
+    ],
+    "indexes": [
+      {
+        "definition": "CREATE UNIQUE INDEX conversation_disclosures_pkey ON public.conversation_disclosures USING btree (conversation_id, source_id)",
+        "ready": true,
+        "valid": true
+      }
+    ]
+  },
+  "conversation_tasks": {
+    "columns": {
+      "accepted_turn": {
+        "default": null,
+        "nullable": false,
+        "type": "jsonb"
+      },
+      "agent_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "authorization_expires_at": {
+        "default": null,
+        "nullable": false,
+        "type": "timestamp with time zone"
+      },
+      "context_revision": {
+        "default": null,
+        "nullable": false,
+        "type": "bigint"
+      },
+      "conversation_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "created_at": {
+        "default": null,
+        "nullable": false,
+        "type": "timestamp with time zone"
+      },
+      "effective_settings": {
+        "default": null,
+        "nullable": true,
+        "type": "jsonb"
+      },
+      "expires_at": {
+        "default": null,
+        "nullable": false,
+        "type": "timestamp with time zone"
+      },
+      "failure": {
+        "default": null,
+        "nullable": true,
+        "type": "jsonb"
+      },
+      "frozen_input": {
+        "default": null,
+        "nullable": false,
+        "type": "jsonb"
+      },
+      "generation": {
+        "default": null,
+        "nullable": false,
+        "type": "bigint"
+      },
+      "issued_at": {
+        "default": null,
+        "nullable": false,
+        "type": "timestamp with time zone"
+      },
+      "last_progress_at": {
+        "default": null,
+        "nullable": true,
+        "type": "timestamp with time zone"
+      },
+      "last_update_ordinal": {
+        "default": "0",
+        "nullable": false,
+        "type": "bigint"
+      },
+      "lease_expires_at": {
+        "default": null,
+        "nullable": true,
+        "type": "timestamp with time zone"
+      },
+      "lease_owner": {
+        "default": null,
+        "nullable": true,
+        "type": "text"
+      },
+      "lease_token": {
+        "default": null,
+        "nullable": true,
+        "type": "uuid"
+      },
+      "policy_revision": {
+        "default": null,
+        "nullable": false,
+        "type": "text"
+      },
+      "receipt_acknowledgement": {
+        "default": null,
+        "nullable": true,
+        "type": "jsonb"
+      },
+      "reply_event_id": {
+        "default": null,
+        "nullable": true,
+        "type": "uuid"
+      },
+      "request_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "requester_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "result": {
+        "default": null,
+        "nullable": true,
+        "type": "jsonb"
+      },
+      "room_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "selected_settings": {
+        "default": null,
+        "nullable": false,
+        "type": "jsonb"
+      },
+      "source_manifest": {
+        "default": null,
+        "nullable": false,
+        "type": "jsonb"
+      },
+      "state": {
+        "default": null,
+        "nullable": false,
+        "type": "text"
+      },
+      "task_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "trigger_event_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "updated_at": {
+        "default": null,
+        "nullable": false,
+        "type": "timestamp with time zone"
+      },
+      "usage": {
+        "default": null,
+        "nullable": true,
+        "type": "jsonb"
+      }
+    },
+    "constraints": [
+      {
+        "definition": "CHECK (((char_length(lease_owner) >= 1) AND (char_length(lease_owner) <= 128)))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK (((char_length(policy_revision) >= 1) AND (char_length(policy_revision) <= 128)))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK (((context_revision >= 1) AND (context_revision <= '9007199254740991'::bigint)))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK ((expires_at <= (issued_at + '00:03:00'::interval)))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK (((generation >= 1) AND (generation <= '9007199254740991'::bigint)))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK (((issued_at < expires_at) AND (expires_at <= authorization_expires_at)))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK (((jsonb_typeof(frozen_input) = 'object'::text) AND (jsonb_typeof(source_manifest) = 'array'::text)))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK (((last_update_ordinal >= 0) AND (last_update_ordinal <= '9007199254740991'::bigint)))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK ((((lease_owner IS NULL) AND (lease_expires_at IS NULL) AND (lease_token IS NULL)) OR ((lease_owner IS NOT NULL) AND (lease_expires_at IS NOT NULL) AND (lease_token IS NOT NULL))))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK ((state = ANY (ARRAY['reserved'::text, 'running'::text, 'completed'::text, 'failed'::text])))",
+        "validated": true
+      },
+      {
+        "definition": "FOREIGN KEY (conversation_id, room_id, agent_id, generation) REFERENCES agent_conversations(conversation_id, room_id, agent_id, generation)",
+        "validated": true
+      },
+      {
+        "definition": "FOREIGN KEY (reply_event_id, room_id) REFERENCES room_events(event_id, room_id)",
+        "validated": true
+      },
+      {
+        "definition": "FOREIGN KEY (room_id, request_id) REFERENCES room_requests(room_id, request_id)",
+        "validated": true
+      },
+      {
+        "definition": "FOREIGN KEY (trigger_event_id, room_id) REFERENCES room_events(event_id, room_id)",
+        "validated": true
+      },
+      {
+        "definition": "PRIMARY KEY (task_id)",
+        "validated": true
+      },
+      {
+        "definition": "UNIQUE (room_id, request_id)",
+        "validated": true
+      },
+      {
+        "definition": "UNIQUE (task_id, conversation_id, room_id, agent_id, generation)",
+        "validated": true
+      }
+    ],
+    "indexes": [
+      {
+        "definition": "CREATE UNIQUE INDEX conversation_tasks_pkey ON public.conversation_tasks USING btree (task_id)",
+        "ready": true,
+        "valid": true
+      },
+      {
+        "definition": "CREATE UNIQUE INDEX conversation_tasks_room_id_request_id_key ON public.conversation_tasks USING btree (room_id, request_id)",
+        "ready": true,
+        "valid": true
+      },
+      {
+        "definition": "CREATE UNIQUE INDEX conversation_tasks_task_id_conversation_id_room_id_agent_id_key ON public.conversation_tasks USING btree (task_id, conversation_id, room_id, agent_id, generation)",
+        "ready": true,
+        "valid": true
+      }
+    ]
+  },
+  "conversation_update_requests": {
+    "columns": {
+      "agent_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "conversation_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "generation": {
+        "default": null,
+        "nullable": false,
+        "type": "bigint"
+      },
+      "ordinal": {
+        "default": null,
+        "nullable": false,
+        "type": "bigint"
+      },
+      "received_at": {
+        "default": null,
+        "nullable": false,
+        "type": "timestamp with time zone"
+      },
+      "request": {
+        "default": null,
+        "nullable": false,
+        "type": "jsonb"
+      },
+      "response": {
+        "default": null,
+        "nullable": false,
+        "type": "jsonb"
+      },
+      "room_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "task_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "update_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      }
+    },
+    "constraints": [
+      {
+        "definition": "CHECK (((ordinal >= 1) AND (ordinal <= '9007199254740991'::bigint)))",
+        "validated": true
+      },
+      {
+        "definition": "FOREIGN KEY (task_id, conversation_id, room_id, agent_id, generation) REFERENCES conversation_tasks(task_id, conversation_id, room_id, agent_id, generation)",
+        "validated": true
+      },
+      {
+        "definition": "PRIMARY KEY (task_id, update_id)",
+        "validated": true
+      },
+      {
+        "definition": "UNIQUE (task_id, ordinal)",
+        "validated": true
+      }
+    ],
+    "indexes": [
+      {
+        "definition": "CREATE UNIQUE INDEX conversation_update_requests_pkey ON public.conversation_update_requests USING btree (task_id, update_id)",
+        "ready": true,
+        "valid": true
+      },
+      {
+        "definition": "CREATE UNIQUE INDEX conversation_update_requests_task_id_ordinal_key ON public.conversation_update_requests USING btree (task_id, ordinal)",
+        "ready": true,
+        "valid": true
+      }
+    ]
+  },
+  "conversation_updates": {
+    "columns": {
+      "agent_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "conversation_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "data": {
+        "default": null,
+        "nullable": false,
+        "type": "jsonb"
+      },
+      "generation": {
+        "default": null,
+        "nullable": false,
+        "type": "bigint"
+      },
+      "kind": {
+        "default": null,
+        "nullable": false,
+        "type": "text"
+      },
+      "occurred_at": {
+        "default": null,
+        "nullable": false,
+        "type": "timestamp with time zone"
+      },
+      "ordinal": {
+        "default": null,
+        "nullable": false,
+        "type": "bigint"
+      },
+      "room_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "task_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "update_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      }
+    },
+    "constraints": [
+      {
+        "definition": "CHECK ((kind = ANY (ARRAY['progress'::text, 'settings'::text, 'usage'::text, 'completed'::text, 'failed'::text])))",
+        "validated": true
+      },
+      {
+        "definition": "CHECK (((ordinal >= 1) AND (ordinal <= '9007199254740991'::bigint)))",
+        "validated": true
+      },
+      {
+        "definition": "FOREIGN KEY (task_id, conversation_id, room_id, agent_id, generation) REFERENCES conversation_tasks(task_id, conversation_id, room_id, agent_id, generation)",
+        "validated": true
+      },
+      {
+        "definition": "PRIMARY KEY (task_id, update_id)",
+        "validated": true
+      },
+      {
+        "definition": "UNIQUE (task_id, ordinal)",
+        "validated": true
+      }
+    ],
+    "indexes": [
+      {
+        "definition": "CREATE UNIQUE INDEX conversation_updates_pkey ON public.conversation_updates USING btree (task_id, update_id)",
+        "ready": true,
+        "valid": true
+      },
+      {
+        "definition": "CREATE UNIQUE INDEX conversation_updates_task_id_ordinal_key ON public.conversation_updates USING btree (task_id, ordinal)",
+        "ready": true,
+        "valid": true
+      }
+    ]
+  },
+  "room_events": {
+    "columns": {
+      "actor_display_name": {
+        "default": null,
+        "nullable": true,
+        "type": "text"
+      },
+      "actor_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "actor_role": {
+        "default": null,
+        "nullable": false,
+        "type": "text"
+      },
+      "event_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "event_type": {
+        "default": null,
+        "nullable": false,
+        "type": "text"
+      },
+      "occurred_at": {
+        "default": null,
+        "nullable": false,
+        "type": "timestamp with time zone"
+      },
+      "payload": {
+        "default": null,
+        "nullable": false,
+        "type": "jsonb"
+      },
+      "request_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "room_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "sequence": {
+        "default": null,
+        "nullable": false,
+        "type": "bigint"
+      }
+    },
+    "constraints": [
+      {
+        "definition": "PRIMARY KEY (event_id)",
+        "validated": true
+      },
+      {
+        "definition": "UNIQUE (event_id, room_id)",
+        "validated": true
+      },
+      {
+        "definition": "UNIQUE (room_id, sequence)",
+        "validated": true
+      }
+    ],
+    "indexes": [
+      {
+        "definition": "CREATE UNIQUE INDEX room_events_event_room_unique ON public.room_events USING btree (event_id, room_id)",
+        "ready": true,
+        "valid": true
+      },
+      {
+        "definition": "CREATE UNIQUE INDEX room_events_pkey ON public.room_events USING btree (event_id)",
+        "ready": true,
+        "valid": true
+      },
+      {
+        "definition": "CREATE UNIQUE INDEX room_events_room_id_sequence_key ON public.room_events USING btree (room_id, sequence)",
+        "ready": true,
+        "valid": true
+      }
+    ]
+  },
+  "room_requests": {
+    "columns": {
+      "event_ids": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid[]"
+      },
+      "request_fingerprint": {
+        "default": null,
+        "nullable": false,
+        "type": "jsonb"
+      },
+      "request_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      },
+      "room_id": {
+        "default": null,
+        "nullable": false,
+        "type": "uuid"
+      }
+    },
+    "constraints": [
+      {
+        "definition": "PRIMARY KEY (room_id, request_id)",
+        "validated": true
+      }
+    ],
+    "indexes": [
+      {
+        "definition": "CREATE UNIQUE INDEX room_requests_pkey ON public.room_requests USING btree (room_id, request_id)",
+        "ready": true,
+        "valid": true
+      }
+    ]
+  }
+}

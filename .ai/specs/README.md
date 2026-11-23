@@ -38,6 +38,8 @@ publication. Local-only/unmerged wording applies to those historical checkpoints
 
 ## Local areas
 
+- [Approved Task 9 runtime compatibility preparation](how/task9-runtime-compatibility.md) — Compose/DNS corrections and bounded schema readiness; new exact profile and activation remain gated.
+
 - [Approved How: packaged v1.1 profile validation](how/packaged-profile-validation.md) — exact source/package preflight; no activation/provider authority.
 - [Approved Task 9 packaged acceptance preparation plan — 2026-11-20](how/task9-packaged-acceptance-2026-11-20.md) — local implementation authorized; activation/provider gates retained.
 - [What: local MVP platform](what/local-mvp.md)

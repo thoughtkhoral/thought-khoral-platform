@@ -33,6 +33,38 @@ Task 9 opt-in packaged room-stack, rendered-browser/Keycloak and live-provider
 verification remain open, along with v1.1 contract, image and release publication.
 Local containers remain stopped and the external database volume preserved.
 
+## Approved runtime compatibility preparation — 2026-11-23
+
+The [approved local design](../.ai/specs/how/task9-runtime-compatibility.md)
+records reproducible proxy loopback extra-host syntax and mediator DNS ownership.
+`bash scripts/test-codex-compose.sh` exercises installed Compose's actual create
+argv with synthetic inputs, a temporary project and a replacement engine. Its
+dry run creates no containers and contacts no provider. Real broker-to-mediator
+private DNS and authenticated catalog verification remain separate integration
+evidence.
+
+The standalone preflight below inspects an explicitly selected owned PostgreSQL
+container's actual schema over container-local authenticated TCP. It uses only
+system catalogs in a read-only transaction; it never applies migrations. All
+connection/statement/lock/process time and output are bounded. It requires the
+0006/0007 conversation columns, defaults, validated constraints and valid indexes,
+plus the referenced room table structure. Migration-ledger rows alone do not
+satisfy it. Output contains only readiness and migration identifiers; database
+errors and credentials are suppressed.
+
+```sh
+node --test scripts/tests/codex-schema-readiness.test.mjs
+node scripts/check-codex-schema.mjs <owned-postgres-container>
+```
+
+The exported `verifyConversationSchema(container, execute)` hook is reserved for
+the future separately reviewed compatibility profile. Existing historical modes
+and profile bytes remain unchanged. That new profile must call the hook before
+provider requests and bind the exact clean runner and corrected worker image.
+The root orchestrator owns the private backup/isolated migration check and the
+separate existing-volume upgrade gate. This preparation grants no upgrade,
+activation, publication, provider-call or Task 9 acceptance authority.
+
 ## Prepared released-v1.1 packaged profile — 2026-11-20
 
 The [approved validation design](../.ai/specs/how/packaged-profile-validation.md)
