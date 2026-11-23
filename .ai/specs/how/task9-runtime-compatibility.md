@@ -73,3 +73,39 @@ checks with the actual installed generator. Input/startup, host admission,
 mediator-egress and four proxy-policy tests pass. Optional historical cleanup
 checks cannot reach assertions while the current stack occupies fixed port
 8080; the stack and historical fixtures remain untouched.
+
+## Separate compatibility profile binding
+
+After actual adapter evidence, prepare the separately named fixed profile
+`packaged-v1.1-runtime-compat`. The approved corrected worker source is
+`423d4e84985eb535caa66c7522c4191c6dbccad6`, immutable ARM64 image
+`sha256:1ac229b25167845b4d7cec217304f3064b02d65d60c53f35b07c5ae3e3683b3b`.
+Preserve every other original profile field and all original profile/fixture
+bytes; anchor the new profile's own exact bytes separately. Permit only these
+two explicit profile selectors with the existing live opt-in. Cross-profile
+operator packets must fail before engine access. The new operator packet must
+also specify a closed `postgresContainer` name, validated before any engine
+command. Its platform revision remains the actual clean runner HEAD, never a
+self-referential embedded commit.
+
+Only the new profile invokes the read-only schema hook before any provider
+request, retaining only safe schema readiness evidence. Existing original and
+historical runner behavior stays unchanged. Verify source/package/schema
+helpers directly against the corrected owned fixture and migrated clone without
+activating a live workflow or providing actual human/provider credentials.
+Unknown selectors, mixed/cross-profile identities, absent/malformed database
+names and missing schema remain refused. The independently reproduced watchdog
+health failure remains under root investigation; this profile preparation grants
+no changed-input activation or provider authority and closes no Task 9 gate.
+
+Actual production-image adapter regression now demonstrates RED HTTP 503 on
+original image `sha256:2dd78cdf5eddb9ca271611998ea44fe6d6cfde6cfca8ba7d1d6c8858240b540d`
+and GREEN HTTP 200 on the corrected image above. The real normalized catalog
+contains gpt-6.1-sol with low/medium/high/xhigh/max/ultra options (native default
+low); configured platform defaults remain gpt-6.1-sol/medium. The corrected
+fixture verifies zero conversations/receipts and requests no model turn.
+Network-none fixture containers and volumes were removed. During harness
+iteration a remote cp layout issue was corrected using safe archive streaming;
+an unsupported volume-cleanup flag briefly left six owned synthetic volumes,
+which were explicitly removed before the final passing repetition. No current
+stack or operator data was affected.
