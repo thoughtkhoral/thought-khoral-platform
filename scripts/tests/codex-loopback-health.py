@@ -125,6 +125,12 @@ def main():
             time.sleep(0.1)
         else:
             raise RuntimeError('original_policy_or_counter_installation_failed')
+        policy_path = '/fixture-policy.py' if args.policy else '/opt/codex/codex-egress.py'
+        installed_hash = pod('exec', owner, 'sha256sum', policy_path).stdout.split()[0]
+        if not re.fullmatch(r'[0-9a-f]{64}', installed_hash) or (
+                args.policy and installed_hash != result['policySourceSha256']):
+            raise RuntimeError('fixture_policy_source_mismatch')
+        result['installedPolicySha256'] = installed_hash
         proxy = prefix + '-proxy'; containers.append(proxy)
         pod('run', '-d', '--name', proxy, '--label', 'thoughtkhoral.task9=loopback-health',
             '--network', 'container:' + owner, '--pid', 'container:' + owner,
@@ -236,7 +242,10 @@ def main():
     finally:
         cleanup = True
         for name in reversed(containers):
-            cleanup &= pod('rm', '--force', '--ignore', name, check=False).returncode == 0
+            try:
+                cleanup &= pod('rm', '--force', '--ignore', name, check=False).returncode == 0
+            except (RuntimeError, OSError, subprocess.SubprocessError):
+                cleanup = False
         result['ownedCleanupPassed'] = cleanup
         if not cleanup:
             result['result'] = 'fixture-error'
