@@ -1,5 +1,45 @@
 # Codex room-conversation verification
 
+## Local loopback health verification — 2026-11-24
+
+Authority: [approved local design](../.ai/specs/how/task9-runtime-compatibility.md#approved-loopback-health-diagnosis--2026-11-24).
+The original policy left three health-check clients in LAST_ACK; counter-only
+classification confirmed six socketless ESTABLISHED reply ACKs with the approved
+zero-payload header form. The narrow correction leaves zero clients in LAST_ACK.
+It adds no application-owned socket permission and changes no watchdog timeout,
+whole-policy comparison, IPv6 rule or initial connection authority.
+
+The local ARM64 proxy/namespace-owner image is
+`sha256:54dc5c7d649e486bff7f5f8821050b800ae5cb454cd8496a9f93ce0047d07cf1`,
+built from clean source `a9c3ff5c79e7d3525bed0b5968ab1d8be6b2cc23`.
+Installed policy SHA-256 is
+`023203915acb11fe9b66183bc65426e52783fa934a89f252c15be5a147ae01dc`.
+Actual packaged-image tests pass without a mounted policy override. Nine raw
+cases match the header predicate only for the exact empty ACK; data/options/
+length/flag variants do not match. These counter-only probes target refused
+port 3130; actual health teardown separately proves the allow rule.
+The retained `python3 scripts/test-codex-egress.py --kernel` passes controlled
+local TLS, IPv4/IPv6/direct-provider/DNS denial, proxy loss/readiness expiry and
+policy-tamper fail-stop. All 54 profile/historical/schema/compatibility guards,
+five Compose checks and input/startup checks pass.
+
+Reproduce the owned network-none regression, negative header probes and bounded
+duration/proxy-loss check without provider credentials or a live stack:
+
+```sh
+python3 scripts/tests/codex-loopback-health.py \
+  --image sha256:54dc5c7d649e486bff7f5f8821050b800ae5cb454cd8496a9f93ce0047d07cf1 \
+  --header-probes --watchdog-seconds 660
+```
+
+The exact packaged image passed 660.005 seconds; stopping the proxy then stopped
+the namespace and dependent. All owned containers were removed. An earlier run
+using the same policy bytes on the unchanged base image passed 660.003 seconds,
+then stopped its namespace and dependent when the proxy was deliberately lost.
+This evidence is bounded; it accepts no full packaged-stack/browser/live gate.
+Source/image publication, existing-data upgrades and changed-input activation
+remain separate. Both original profile files and their digests remain unchanged.
+
 ## Current workspace context — 2026-11-20
 
 The exact packaged-v1.1 acceptance profile is implemented and reviewed at local source `996e1887234b8958a315279aa3d5aa194a7fad52`. Profile SHA-256 is `7106f7e41a6bc13feab8a0b51fccde9b47fefca2d63980d551ed929eac1c1a71`. Forty-six profile/historical-guard tests and actual credential-free image/source preflight passed. The verified local ARM64 image passed ten package/startup probes and byte-identical native capture; this is not full packaged-stack/private-DNS/browser/live acceptance.

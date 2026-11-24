@@ -8,6 +8,14 @@ current documentation contract, not a new runtime or release decision.
 
 ## Checkout applicability
 
+This isolated local branch includes the approved loopback teardown correction
+and separately prepared compatibility profile. See the
+[loopback verification checkpoint](codex-verification.md#local-loopback-health-verification--2026-11-24)
+and [owning design](../.ai/specs/how/task9-runtime-compatibility.md).
+The exact packaged image passed 660.005 seconds and proxy-loss fail-stop. Existing-data
+upgrades, publication and changed-input activation remain gated; older
+integration text below describes its own earlier checkpoint.
+
 This checkout contains the reviewed released-v1.1 implementation. The
 maintainer authorized coordinated integration on 2026-11-23. Frozen component
 acceptance commits remain unchanged; packaged/browser/live gates remain open.
