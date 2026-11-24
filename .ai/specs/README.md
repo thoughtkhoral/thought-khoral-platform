@@ -1,5 +1,16 @@
 # ThoughtKhoral platform specifications
 
+## Local loopback correction — 2026-11-24
+
+The maintainer approved the bounded [loopback correction](how/task9-runtime-compatibility.md#approved-loopback-health-diagnosis--2026-11-24).
+Kernel RED/GREEN proves socketless zero-payload reply ACKs were rejected and
+teardown now completes. Nine kernel header cases, retained egress/fail-stop
+checks and 54 profile/historical/schema guards pass. A new immutable ARM64 image
+is prepared from clean source `a9c3ff5`; the exact packaged image passes a
+660.005-second observation and proxy-loss fail-stop. Existing profiles, worker and contract remain
+frozen. This branch is local and unmerged; existing-data upgrades, publication,
+changed-input activation and provider/live acceptance remain gated.
+
 ## Current workspace state — 2026-11-20
 
 The exact packaged-v1.1 acceptance profile is implemented and reviewed at local source `996e1887234b8958a315279aa3d5aa194a7fad52`. Profile SHA-256 is `7106f7e41a6bc13feab8a0b51fccde9b47fefca2d63980d551ed929eac1c1a71`. Forty-six profile/historical-guard tests and actual credential-free image/source preflight passed. The verified local ARM64 image passed ten package/startup probes and byte-identical native capture; this is not full packaged-stack/private-DNS/browser/live acceptance.

@@ -28,6 +28,40 @@ header form, using length/u32 checks in addition to the approved predicates and
 original destination 127.0.0.1:3128. Other header forms stay refused; no general
 ESTABLISHED, INVALID or data-carrying exception is permitted.
 
+### Local kernel/package checkpoint — 2026-11-24
+
+Correction source is `a9c3ff5c79e7d3525bed0b5968ab1d8be6b2cc23`. Real-kernel
+GREEN completes all three client teardowns (LAST_ACK zero), with a positive
+eligible ACK counter delta and zero INVALID/UNTRACKED/original-direction deltas.
+Nine real-kernel raw probes show the header predicate matches only the exact empty
+timestamped ACK; payload, disguised same-length data and header/options/flags/
+reserved-bit variants do not match. All raw packets target refused port 3130;
+actual health teardown is the separate allow-rule proof. The raw sender is separately owned, network-none and
+NET_RAW-only; it adds no production capability or allow verdict.
+
+The exact local ARM64 proxy/namespace-owner image is
+`sha256:54dc5c7d649e486bff7f5f8821050b800ae5cb454cd8496a9f93ce0047d07cf1`,
+built from clean correction source above. Source/policy labels and the installed
+policy hash `023203915acb11fe9b66183bc65426e52783fa934a89f252c15be5a147ae01dc`
+are verified. Its teardown and header tests pass without a mounted override.
+
+The retained real-kernel suite passes IPv4/IPv6/direct-provider/DNS denials,
+controlled local verified TLS, proxy-loss/readiness expiry and policy-tamper
+fail-stop. All 54 profile/historical/schema/compatibility guards, five Compose,
+one input and one startup check pass. Temporary historical inputs had missing
+files; exact local commits and the candidate archive/lock were restored without
+changing their pins/hashes, preserving previous partial directories privately.
+Both frozen profile JSON files remain byte-identical.
+
+An initial actual-watchdog run using the same policy bytes on the unchanged base
+image passed 660.003 seconds, then proxy loss stopped namespace and dependent.
+The exact packaged image passed 660.005 seconds; proxy loss then stopped its
+namespace and dependent. All owned containers were removed. Independent
+review finds the runtime bounds correct; the regression now requires positive
+eligible and zero forbidden-class deltas rather than merely recording them.
+All source/image publication, existing-data upgrade and changed-input activation
+gates remain. These checks establish no public-provider or full Task 9 acceptance.
+
 Status: approved for bounded local implementation on 2026-11-23, under the
 [root proposal](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/task9-runtime-compatibility-proposal-2026-11-23.md)
 and [execution record](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/task9-runtime-compatibility-execution-2026-11-23.md).
