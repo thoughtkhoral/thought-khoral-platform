@@ -19,6 +19,16 @@ def install(binary, dns):
     for uid, port in [('10004', '3128'), ('10003', '9091')]:
         rule(binary, '-A', CHAIN, '-m', 'owner', '--uid-owner', uid, '-p', 'tcp',
              '-m', 'conntrack', '--ctstate', 'ESTABLISHED', '--ctorigdstport', port, '--ctdir', 'REPLY', '-j', 'ACCEPT')
+    if binary == 'iptables':
+        # TCP teardown can emit a reply ACK without a full owning socket. Admit
+        # only the observed timestamped, empty ACK on an existing loopback flow.
+        # IPv4 length 52 = IHL 20 + TCP header 32: no payload or IP options.
+        rule(binary, '-A', CHAIN, '-o', 'lo', '-s', '127.0.0.1/32', '-d', '127.0.0.1/32',
+             '-p', 'tcp', '--tcp-flags', 'ALL', 'ACK', '-m', 'owner', '!', '--socket-exists',
+             '-m', 'conntrack', '--ctstate', 'ESTABLISHED', '--ctdir', 'REPLY',
+             '--ctorigdst', '127.0.0.1', '--ctorigdstport', '3128',
+             '-m', 'length', '--length', '52', '-m', 'u32', '--u32',
+             '0&0xFF000000=0x45000000&&32&0xFFFF0000=0x80100000', '-j', 'ACCEPT')
     for address in dns:
         for uid in ['0', '10004']:
             for protocol in ['tcp', 'udp']:
