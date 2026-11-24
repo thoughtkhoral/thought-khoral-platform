@@ -17,6 +17,17 @@ Any eligible correction requires actual kernel RED/GREEN and retained negative
 egress/fail-stop tests, independent review and new clean platform evidence.
 Existing-data upgrades, publication, activation and provider calls remain gated.
 
+The original-policy regression on 2026-11-24 completes three HTTP health reads
+and leaves three clients in LAST_ACK and three server TIME_WAIT sockets. Counter-
+only rules identify six rejected ACKs matching the approved socketless
+ESTABLISHED reply predicate; none match INVALID/UNTRACKED/original direction.
+The same six also match a stricter zero-payload representation: IPv4 total length
+52, IPv4 header exactly 20 bytes, TCP header exactly 32 bytes, reserved bits zero
+and flags exactly ACK. The conditional allow rule is limited to that observed
+header form, using length/u32 checks in addition to the approved predicates and
+original destination 127.0.0.1:3128. Other header forms stay refused; no general
+ESTABLISHED, INVALID or data-carrying exception is permitted.
+
 Status: approved for bounded local implementation on 2026-11-23, under the
 [root proposal](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/task9-runtime-compatibility-proposal-2026-11-23.md)
 and [execution record](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/task9-runtime-compatibility-execution-2026-11-23.md).
