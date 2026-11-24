@@ -1,5 +1,22 @@
 # Task 9 runtime compatibility preparation
 
+## Approved loopback health diagnosis — 2026-11-24
+
+The maintainer approved the root [loopback health-policy amendment](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/task9-loopback-health-policy-amendment-2026-11-23.md)
+for bounded local fixtures and a conditional correction. First reproduce original
+kernel-policy teardown and correlate the blocked ACK's state, direction and
+socket ownership with nonterminating counter predicates. Permit an exception
+only for confirmed socketless, zero-payload pure TCP ACKs on IPv4 127.0.0.1
+loopback, ESTABLISHED reply direction with original destination port 3128.
+Application-owned socket UID rules, initial connection rules, one-second timeout,
+whole-policy comparison and fail-stop behavior remain unchanged. Do not admit
+NEW/RELATED/INVALID, other ports/destinations or data-bearing packets. If evidence
+does not match, or this predicate cannot be represented safely, stop without
+widening and prepare a separate amendment. Existing profiles stay frozen.
+Any eligible correction requires actual kernel RED/GREEN and retained negative
+egress/fail-stop tests, independent review and new clean platform evidence.
+Existing-data upgrades, publication, activation and provider calls remain gated.
+
 Status: approved for bounded local implementation on 2026-11-23, under the
 [root proposal](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/task9-runtime-compatibility-proposal-2026-11-23.md)
 and [execution record](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/task9-runtime-compatibility-execution-2026-11-23.md).
