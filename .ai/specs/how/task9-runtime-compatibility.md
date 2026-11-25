@@ -1,5 +1,27 @@
 # Task 9 runtime compatibility preparation
 
+## Existing database maintenance — 2026-11-25
+
+The maintainer separately approved the root existing-database maintenance plan.
+The root operator applied the exact already approved 0006/0007 bodies to the
+existing development database as one transaction, SQL SHA-256
+`bdb5ca91432378d50399020de58f87e6a75ef59adb8cac1cab5d41a644c6f928`, from frozen
+broker source `673294e66fed2b6e98d73e08cfe4a23a0e5e4d48`.
+An isolated earlier-schema reference matched before maintenance. A fresh complete
+owner-only backup was restored and migrated privately before the existing-data
+DDL. All six earlier table fingerprints and existing ownership/grants matched
+after the transaction; new tables were empty and the migration ledger remained
+untouched. Append-only/generation/foreign-key checks passed on the private clone.
+The actual existing database now passes the bounded read-only schema verifier.
+
+Only the previously running room gateway was stopped and resumed. Its real
+health check and UI/Keycloak HTTP checks pass. The original database container
+and volume are preserved; the owned fixture was removed and private recovery
+backup retained. Codex and the previously stopped mediator remain off. This is
+operational evidence for the schema prerequisite, not a runtime-source change,
+changed-input activation, publication or Task 9 acceptance. Earlier checkpoints
+below keep their original dated scope and frozen identities.
+
 ## Approved loopback health diagnosis — 2026-11-24
 
 The maintainer approved the root [loopback health-policy amendment](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/task9-loopback-health-policy-amendment-2026-11-23.md)

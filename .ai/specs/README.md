@@ -1,5 +1,13 @@
 # ThoughtKhoral platform specifications
 
+## Existing database ready — 2026-11-25
+
+Separately approved [database maintenance](how/task9-runtime-compatibility.md#existing-database-maintenance--2026-11-25)
+is complete. The actual existing database passes the required 0006/0007 schema
+check, preserving earlier data/permissions and its empty ledger. Base availability
+is restored; Codex remains off. Source integration/publication and changed-input
+activation remain separate gates. Runtime/profile/image bytes are unchanged.
+
 ## Local loopback correction — 2026-11-24
 
 The maintainer approved the bounded [loopback correction](how/task9-runtime-compatibility.md#approved-loopback-health-diagnosis--2026-11-24).
