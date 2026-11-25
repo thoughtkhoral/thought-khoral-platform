@@ -2,6 +2,15 @@
 
 [Project documentation](docs/README.md) · [Documentation requirements](.ai/specs/what/public-documentation.md)
 
+## Existing database ready — 2026-11-25
+
+The approved existing-database upgrade is complete; the actual database passes
+the required conversation schema check and earlier data/permissions are preserved.
+See the [maintenance checkpoint](docs/codex-verification.md#existing-database-readiness--2026-11-25)
+and [owning specification](.ai/specs/how/task9-runtime-compatibility.md#existing-database-maintenance--2026-11-25).
+Base availability is restored. Codex remains off pending separate review of the
+corrected stack's activation; local source changes remain unmerged/unpublished.
+
 ## Local loopback correction — 2026-11-24
 
 This isolated branch contains the approved narrow TCP teardown correction;

@@ -1,5 +1,27 @@
 # Codex room-conversation verification
 
+## Existing database readiness — 2026-11-25
+
+The separately approved maintenance applied the frozen 0006/0007 migration bodies
+to the existing development database in one verified transaction. Authority and
+exact SQL identity are recorded in the [owning checkpoint](../.ai/specs/how/task9-runtime-compatibility.md#existing-database-maintenance--2026-11-25).
+Fresh owner-only complete backup/restore verification preceded existing-data DDL.
+All six earlier table fingerprints and existing ownership/grants matched afterward;
+new tables were empty at the post-transaction check and no ledger history was
+invented. The existing PostgreSQL container and volume were preserved.
+
+The bounded read-only check now succeeds on the existing database:
+
+```sh
+node scripts/check-codex-schema.mjs thought-khoral_thought-khoral-postgres_1
+```
+
+The previously running room gateway was resumed and passed its actual health
+check; UI/Keycloak HTTP return 200. All owned database fixtures were removed and
+the private recovery backup is retained. The mediator and Codex services that
+were previously stopped remain off. This closes the database prerequisite only;
+local source integration/publication and changed-input activation remain gated.
+
 ## Local loopback health verification — 2026-11-24
 
 Authority: [approved local design](../.ai/specs/how/task9-runtime-compatibility.md#approved-loopback-health-diagnosis--2026-11-24).

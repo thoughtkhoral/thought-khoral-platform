@@ -8,6 +8,11 @@ current documentation contract, not a new runtime or release decision.
 
 ## Checkout applicability
 
+Separately approved existing-database maintenance completed on 2026-11-25;
+the actual database now passes schema readiness and base availability is restored.
+See the [maintenance verification](codex-verification.md#existing-database-readiness--2026-11-25).
+This does not authorize starting the corrected Codex stack or publishing sources.
+
 This isolated local branch includes the approved loopback teardown correction
 and separately prepared compatibility profile. See the
 [loopback verification checkpoint](codex-verification.md#local-loopback-health-verification--2026-11-24)
@@ -31,7 +36,7 @@ commits or enable a prepared command in a checkout that lacks its implementation
 | --- | --- | --- |
 | [Repository README](../README.md) | Purpose, maturity, prerequisites, valid commands, compatibility and source links. | [Source](../.ai/specs/what/public-documentation.md) |
 | [Local operation and isolation](codex-local.md) | Opt-in packaging, private state/credentials, admission and network boundary. | [Source](../.ai/specs/how/codex-local-service.md) |
-| [Conversation verification](codex-verification.md) | Historical fake/candidate modes, prepared profile applicability and gated live procedure. | [Source](../.ai/specs/how/codex-local-service.md) |
+| [Conversation verification](codex-verification.md) | Historical fake/candidate modes, prepared profile applicability, schema maintenance and gated live procedure. | [Source](../.ai/specs/how/codex-local-service.md), [compatibility/maintenance](../.ai/specs/how/task9-runtime-compatibility.md) |
 
 ## Authoring and verification
 
