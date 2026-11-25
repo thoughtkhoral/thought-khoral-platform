@@ -1,5 +1,13 @@
 # Codex room-conversation verification
 
+Latest operational checkpoint — 2026-11-25: all eleven corrected images and
+authenticated model/default reads passed on internal-only Codex networking.
+The bounded eleven-minute observation remains unverified. Codex and mediator
+are off; seven base services are healthy, with no conversation allocations or
+model/provider calls. The [owning execution checkpoint](../.ai/specs/how/task9-runtime-compatibility.md)
+distinguishes these subchecks from full acceptance. A new observation window
+requires separate approval; the original admission expiry was not renewed.
+
 ## Existing database readiness — 2026-11-25
 
 The separately approved maintenance applied the frozen 0006/0007 migration bodies
