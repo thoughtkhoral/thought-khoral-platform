@@ -1,5 +1,13 @@
 # Platform documentation
 
+Latest checkpoint — 2026-11-25: provider-isolated timed readiness passed over
+662.743 seconds with 22 samples and two-human catalog/default reads
+before and after. Codex/mediator were then stopped; seven base services are healthy,
+with zero conversation/recovery work and no provider calls. The
+[owning operational checkpoint](../.ai/specs/how/task9-runtime-compatibility.md) preserves exact scope. Source
+integration/publication and browser/provider/Task 9 acceptance remain open.
+Earlier timed-pending checkpoints below retain their dated historical scope.
+
 Latest operational checkpoint — 2026-11-25: all eleven corrected images and
 authenticated model/default reads passed on internal-only Codex networking.
 The bounded eleven-minute observation remains unverified. Codex and mediator
