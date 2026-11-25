@@ -1,5 +1,21 @@
 # Task 9 runtime compatibility preparation
 
+## Provider-isolated timed readiness passed — 2026-11-25
+
+The separately approved fresh root window completed 662.743 seconds with
+22 monotonic health/isolation samples, all eleven exact images and unchanged
+container IDs/start times. Actual mounts, namespace owners, private DNS and two
+internal-only Codex interfaces/routes passed. Both fixture humans received model/
+default HTTP 200 before and after observation. No model/provider/tool call ran.
+The executing platform source was `f51ec3e57b711c311f2bebfebf4e987549551cf7`; later status commits are docs only.
+
+The supervisor stopped mediator/Codex before the fixed expiry and verified seven
+base services healthy, UI/Keycloak HTTP 200, protected container IDs and existing
+database volume preserved, and zero conversation/recovery counts. This closes
+provider-isolated timed readiness, not source publication, browser/provider or
+aggregate Task 9 acceptance. The root [execution record](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/task9-readiness-renewal-execution-2026-11-25.md)
+retains exact evidence. Earlier timed-pending checkpoints remain historical.
+
 ## Corrected-stack operational checkpoint — 2026-11-25
 
 The separately approved root startup attempt started all eleven exact-image
