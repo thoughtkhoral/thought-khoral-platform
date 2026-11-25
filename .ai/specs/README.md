@@ -1,5 +1,13 @@
 # ThoughtKhoral platform specifications
 
+Latest operational checkpoint — 2026-11-25: all eleven corrected images and
+authenticated model/default reads passed on internal-only Codex networking.
+The bounded eleven-minute observation remains unverified. Codex and mediator
+are off; seven base services are healthy, with no conversation allocations or
+model/provider calls. The [owning execution checkpoint](how/task9-runtime-compatibility.md)
+distinguishes these subchecks from full acceptance. A new observation window
+requires separate approval; the original admission expiry was not renewed.
+
 ## Existing database ready — 2026-11-25
 
 Separately approved [database maintenance](how/task9-runtime-compatibility.md#existing-database-maintenance--2026-11-25)

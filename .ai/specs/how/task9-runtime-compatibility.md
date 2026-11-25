@@ -1,5 +1,25 @@
 # Task 9 runtime compatibility preparation
 
+## Corrected-stack operational checkpoint — 2026-11-25
+
+The separately approved root startup attempt started all eleven exact-image
+services using this clean executing revision `4ce5fbb646bde30dcd961b871c94f3ec13851356`.
+Image/mount/namespace checks passed; both fixture humans received HTTP 200 for
+catalog/defaults with the configured model, six efforts and medium default.
+Both Codex networks were internal with no external gateway; no model turn was
+requested. PostgreSQL, Keycloak and memory retained their original container IDs.
+
+The eleven-minute observation was not established within the bounded attempt;
+only the initial 27.286-second sample is accepted. A later retry stopped in its
+read-only SQLite preflight. Its corrected private-copy reader now verifies zero
+worker/mediator records. Codex and the mediator are off, seven base services are
+healthy, and all five PostgreSQL conversation-allocation counts are zero. No
+admission renewal, provider connectivity or aggregate acceptance is claimed.
+The root [execution record](https://github.com/thoughtkhoral/thought-khoral/blob/main/.ai/specs/how/task9-corrected-stack-execution-2026-11-25.md)
+records the actual same-input recreation procedure and remaining window gate.
+These are operational/documentation changes only; runtime image inputs remain
+unchanged from their reviewed sources.
+
 ## Existing database maintenance — 2026-11-25
 
 The maintainer separately approved the root existing-database maintenance plan.
